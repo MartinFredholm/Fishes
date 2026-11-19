@@ -1,0 +1,3 @@
+/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/fishes.dir
+/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/edit_cache.dir
+/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/rebuild_cache.dir

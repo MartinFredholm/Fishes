@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/Users/martinfredholm/Documents/Fishes/build",
+  "command": "/usr/bin/c++ -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -DUSE_LIBTYPE_SHARED -isystem /opt/homebrew/include -std=gnu++20 -arch arm64 -F/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/System/Library/Frameworks  -o CMakeFiles/fishes.dir/fishes.cpp.o -c /Users/martinfredholm/Documents/Fishes/fishes.cpp",
+  "file": "/Users/martinfredholm/Documents/Fishes/fishes.cpp",
+  "output": "CMakeFiles/fishes.dir/fishes.cpp.o"
+}
+]
