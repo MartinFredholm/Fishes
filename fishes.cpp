@@ -2,19 +2,32 @@
 #include "raymath.h"
 #include <cmath>
 #include <stdio.h>
+#include <vector>
 
 using namespace std;
 
-#define FISH_WIDTH 10
-#define FISH_LENGTH 20
+#define N 1000
+
+#define FISH_WIDTH 10.0f
+#define FISH_LENGTH 20.0f
 #define FISH_COLOR BLUE
-#define FISH_SPEED 70
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 450
+#define FISH_SPEED_MIN 10.0f
+#define FISH_SPEED_CRUISE 60.0f
+#define FISH_SPEED_MAX 100.0f
 
-#define WALL_BUFFER_DIST 80.0f
-#define A_WALL 300.0f
+#define FISH_SIGHT_RANGE 50.0f
+#define FISH_COMFORT_RANGE 25.0f
+
+#define WINDOW_WIDTH 1500
+#define WINDOW_HEIGHT 800
+
+#define WALL_BUFFER_DIST 100.0f
+#define W_WALLS 300.0f
+#define T_ALIGN 0.5f
+#define T_CRUISE 0.5f
+#define W_COHERENCE 1.0f
+#define W_SEPERATION 100.0f
 
 struct Kinematics {
     Vector2 pos;
@@ -25,6 +38,7 @@ struct Kinematics {
 
 struct MotionParams {
     float v_min;
+    float v_cruise;
     float v_max;
     float r_max;
     float T_v;
@@ -37,10 +51,11 @@ struct Fish {
     Kinematics kin;
 };
 
-Vector2 desiredWorldAcceleration(const Fish &fish);
+Vector2 desiredWorldAcceleration(int i, const vector<Fish> &fish,
+                                 MotionParams &params);
 
-Vector2 get_commands(const Vector2 &a_des_world, const Fish &fish,
-                     const MotionParams &params);
+Vector2 getCommands(const Vector2 &a_des_world, const Fish &fish,
+                    const MotionParams &params);
 
 Kinematics integrate(const Kinematics &kin, Vector2 commands,
                      const MotionParams &params, float dt);
@@ -50,20 +65,28 @@ void drawFish(const Fish &fish);
 int main() {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Fishes");
     SetTargetFPS(60);
-    float dt = 0.0f;
-    float v_cmd = FISH_SPEED;
-    float r_cmd = 0;
-    Vector2 commands = {v_cmd, r_cmd};
-    MotionParams fish_params = MotionParams(10, 100, 4, 0.3, 0.1, 5, 0.3);
-    Fish fish = Fish({{50.0, 100.0}, -PI / 4, FISH_SPEED, 0});
+    MotionParams fish_params = MotionParams(
+        FISH_SPEED_MIN, FISH_SPEED_CRUISE, FISH_SPEED_MAX, 4, 0.3, 0.1, 5, 0.3);
+    vector<Fish> fish_old(N), fish_new(N);
+    for (Fish &f : fish_old) {
+        f.kin = {{(float)GetRandomValue(100, WINDOW_WIDTH - 100),
+                  (float)GetRandomValue(100, WINDOW_HEIGHT - 100)},
+                 GetRandomValue(0, 359) * DEG2RAD,
+                 FISH_SPEED_CRUISE,
+                 0.0f};
+    }
     while (!WindowShouldClose()) {
-        dt = GetFrameTime();
-        Vector2 a_des_world = desiredWorldAcceleration(fish);
-        Vector2 commands = get_commands(a_des_world, fish, fish_params);
-        fish.kin = integrate(fish.kin, commands, fish_params, dt);
+        float dt = GetFrameTime();
+        for (int i = 0; i < (int)fish_old.size(); ++i) {
+            Vector2 a = desiredWorldAcceleration(i, fish_old, fish_params);
+            Vector2 cmd = getCommands(a, fish_old[i], fish_params);
+            fish_new[i].kin = integrate(fish_old[i].kin, cmd, fish_params, dt);
+        }
+        std::swap(fish_old, fish_new);
         BeginDrawing();
         ClearBackground(BLACK);
-        drawFish(fish);
+        for (const Fish &f : fish_old)
+            drawFish(f);
         EndDrawing();
     }
     CloseWindow();
@@ -106,17 +129,56 @@ Kinematics integrate(const Kinematics &kin, Vector2 commands,
 inline float wallRamp(float d) {
     return Clamp(1.0f - d / WALL_BUFFER_DIST, 0.0f, 1.0f);
 }
-Vector2 desiredWorldAcceleration(const Fish &fish) {
-    const Vector2 p = fish.kin.pos;
-    Vector2 a{0, 0};
-    a.x += A_WALL * wallRamp(p.x);
-    a.x -= A_WALL * wallRamp(WINDOW_WIDTH - p.x);
-    a.y += A_WALL * wallRamp(p.y);
-    a.y -= A_WALL * wallRamp(WINDOW_HEIGHT - p.y);
-    return a;
+
+Vector2 desiredWorldAcceleration(int i, const vector<Fish> &fish,
+                                 MotionParams &params) {
+
+    const Kinematics &self = fish[i].kin;
+    Vector2 heading = {cos(self.phi), -sin(self.phi)};
+
+    Vector2 a_sep{}, a_coh{}, a_align{}, sum_pos{}, sum_vel{};
+
+    int adj_fish = 0;
+    for (int j = 0; j < fish.size(); j++) {
+        if (j == i) {
+            continue;
+        }
+        const Kinematics &other = fish[j].kin;
+        Vector2 relative_pos = other.pos - self.pos;
+        float distance = Vector2Length(relative_pos);
+        if (distance > (FISH_SIGHT_RANGE)) {
+            continue;
+        }
+        if (distance < (FISH_COMFORT_RANGE) && distance > 1e-6f) {
+
+            a_sep -= relative_pos * (1.0f - distance / FISH_COMFORT_RANGE) /
+                     distance;
+        }
+        adj_fish++;
+        sum_pos += relative_pos;
+        sum_vel += Vector2{cos(other.phi), -sin(other.phi)} * other.v;
+    }
+
+    if (adj_fish > 0) {
+        a_coh = sum_pos / adj_fish;
+        a_align = (sum_vel / adj_fish) - heading * self.v;
+    }
+
+    Vector2 a_walls{0, 0};
+    a_walls.x += wallRamp(self.pos.x);
+    a_walls.x -= wallRamp(WINDOW_WIDTH - self.pos.x);
+    a_walls.y += wallRamp(self.pos.y);
+    a_walls.y -= wallRamp(WINDOW_HEIGHT - self.pos.y);
+
+    Vector2 a_cruise = heading * (params.v_cruise - self.v);
+
+    Vector2 a_des = W_WALLS * a_walls + a_align / T_ALIGN +
+                    a_cruise / T_CRUISE + W_COHERENCE * a_coh +
+                    W_SEPERATION * a_sep;
+    return a_des;
 }
-Vector2 get_commands(const Vector2 &a_des_world, const Fish &fish,
-                     const MotionParams &params) {
+Vector2 getCommands(const Vector2 &a_des_world, const Fish &fish,
+                    const MotionParams &params) {
     Vector2 heading = {cos(fish.kin.phi), -sin(fish.kin.phi)};
     Vector2 v_des = fish.kin.v * heading + a_des_world * params.tau;
 
