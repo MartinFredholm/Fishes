@@ -2,59 +2,8 @@
 #include "raymath.h"
 #include <algorithm>
 #include <cmath>
-#include <stdio.h>
 #include <vector>
 
-using namespace std;
-
-#define N_FISH 1000
-#define N_SHARKS 2
-
-#define FISH_WIDTH 10.0f
-#define FISH_LENGTH 20.0f
-#define FISH_COLOR BLUE
-
-#define FISH_SPEED_MIN 5.0f
-#define FISH_SPEED_CRUISE 70.0f
-#define FISH_SPEED_MAX 100.0f
-
-#define FISH_SIGHT_RANGE 100.0f
-#define FISH_FLEE_RANGE 180.0f
-#define FISH_COMFORT_RANGE 40.0f
-
-#define SHARK_WIDTH 20.0f
-#define SHARK_LENGTH 40.0f
-#define SHARK_COLOR RED
-
-#define SHARK_SPEED_MIN 50.0f
-#define SHARK_SPEED_CRUISE 60.0f
-#define SHARK_SPEED_MAX 120.0f
-
-#define SHARK_SIGHT_RANGE 200.0f
-#define SHARK_COMFORT_RANGE 60.0f
-#define SHARK_HUNGER_RATE 0.1f
-#define SHARK_EAT_DISTANCE 15.0f
-#define SHARK_EAT_DURATION 5.0f
-
-#define WINDOW_WIDTH 1500
-#define WINDOW_HEIGHT 800
-
-#define WALL_BUFFER_DIST 100.0f
-#define W_WALLS 500.0f
-#define T_ALIGN 0.5f
-#define T_CRUISE 0.5f
-#define W_COHERENCE 2.0f
-#define W_SEPERATION 90.0f
-#define W_FLEE 300.0f
-#define W_CHASE 300.0f
-
-struct Kinematics {
-    Vector2 pos{};
-    float phi = 0.0f;
-    float v = 0.0f;
-    float r = 0.0f;
-    Vector2 heading = {cos(phi), -sin(phi)};
-};
 struct MotionParams {
     float v_min;
     float v_cruise;
@@ -64,6 +13,66 @@ struct MotionParams {
     float T_r;
     float K_phi;
     float tau;
+};
+
+constexpr int N_FISH = 1000;
+constexpr int N_SHARKS = 2;
+
+constexpr float FISH_WIDTH = 10.0f;
+constexpr float FISH_LENGTH = 20.0f;
+constexpr Color FISH_COLOR = BLUE;
+
+constexpr MotionParams FISH_MOTION = {.v_min = 5.0f,
+                                      .v_cruise = 70.0f,
+                                      .v_max = 100.0f,
+                                      .r_max = 6.0f,
+                                      .T_v = 0.2f,
+                                      .T_r = 0.05f,
+                                      .K_phi = 5.0f,
+                                      .tau = 0.3f};
+
+constexpr float FISH_SIGHT_RANGE = 100.0f;
+constexpr float FISH_FLEE_RANGE = 180.0f;
+constexpr float FISH_COMFORT_RANGE = 40.0f;
+
+constexpr float SHARK_WIDTH = 20.0f;
+constexpr float SHARK_LENGTH = 40.0f;
+constexpr Color SHARK_COLOR = RED;
+
+constexpr MotionParams SHARK_MOTION = {.v_min = 50.0f,
+                                       .v_cruise = 60.0f,
+                                       .v_max = 120.0f,
+                                       .r_max = 3.0f,
+                                       .T_v = 0.6f,
+                                       .T_r = 0.1f,
+                                       .K_phi = 4.0f,
+                                       .tau = 0.3f};
+
+constexpr float SHARK_SIGHT_RANGE = 200.0f;
+constexpr float SHARK_COMFORT_RANGE = 60.0f;
+constexpr float SHARK_HUNGER_RATE = 0.1f;
+constexpr float SHARK_EAT_DISTANCE = 15.0f;
+constexpr float SHARK_EAT_DURATION = 5.0f;
+
+constexpr int WINDOW_WIDTH = 1500;
+constexpr int WINDOW_HEIGHT = 800;
+constexpr float MAX_DT = 1.0f / 30.0f;
+
+constexpr float WALL_BUFFER_DIST = 100.0f;
+constexpr float W_WALLS = 500.0f;
+constexpr float T_ALIGN = 0.5f;
+constexpr float T_CRUISE = 0.5f;
+constexpr float W_COHERENCE = 2.0f;
+constexpr float W_SEPERATION = 90.0f;
+constexpr float W_FLEE = 300.0f;
+constexpr float W_CHASE = 300.0f;
+
+struct Kinematics {
+    Vector2 pos{};
+    float phi = 0.0f;
+    float v = 0.0f;
+    float r = 0.0f;
+    Vector2 heading = {std::cos(phi), -std::sin(phi)};
 };
 
 struct Fish {
@@ -98,26 +107,26 @@ constexpr int GX = (int)(WINDOW_WIDTH / GRID_CELL_SIZE) + 1;
 constexpr int GY = (int)(WINDOW_HEIGHT / GRID_CELL_SIZE) + 1;
 
 struct Grid {
-    vector<int> start =
-        vector<int>(GX * GY + 1); // start[c]..start[c+1] = fish in cell c
-    vector<int> fill = vector<int>(GX * GY);
-    vector<int> items; // fish indices sorted by cell
+    std::vector<int> start =
+        std::vector<int>(GX * GY + 1); // start[c]..start[c+1] = fish in cell c
+    std::vector<int> fill = std::vector<int>(GX * GY);
+    std::vector<int> items; // fish indices sorted by cell
 
     static int cx(float x) {
-        return clamp((int)(x / GRID_CELL_SIZE), 0, GX - 1);
+        return std::clamp((int)(x / GRID_CELL_SIZE), 0, GX - 1);
     }
     static int cy(float y) {
-        return clamp((int)(y / GRID_CELL_SIZE), 0, GY - 1);
+        return std::clamp((int)(y / GRID_CELL_SIZE), 0, GY - 1);
     }
 
-    void build(const vector<Fish> &fish) {
+    void build(const std::vector<Fish> &fish) {
         std::fill(start.begin(), start.end(), 0);
         items.resize(fish.size());
         for (const Fish &f : fish)
             start[cy(f.kin.pos.y) * GX + cx(f.kin.pos.x) + 1]++;
         for (int c = 0; c < GX * GY; ++c)
             start[c + 1] += start[c];
-        copy(start.begin(), start.end() - 1, fill.begin());
+        std::copy(start.begin(), start.end() - 1, fill.begin());
         for (int i = 0; i < (int)fish.size(); ++i) {
             const Vector2 &p = fish[i].kin.pos;
             items[fill[cy(p.y) * GX + cx(p.x)]++] = i;
@@ -126,27 +135,26 @@ struct Grid {
 
     template <class F>
     void forFishInCellsAround(Vector2 p, float radius, F &&f) const {
-        int cell_reach = (int)ceilf(radius / GRID_CELL_SIZE);
+        int cell_reach = (int)std::ceil(radius / GRID_CELL_SIZE);
         int x0 = cx(p.x), y0 = cy(p.y);
-        for (int y = max(y0 - cell_reach, 0); y <= min(y0 + cell_reach, GY - 1);
-             ++y)
-            for (int x = max(x0 - cell_reach, 0);
-                 x <= min(x0 + cell_reach, GX - 1); ++x)
+        for (int y = std::max(y0 - cell_reach, 0);
+             y <= std::min(y0 + cell_reach, GY - 1); ++y)
+            for (int x = std::max(x0 - cell_reach, 0);
+                 x <= std::min(x0 + cell_reach, GX - 1); ++x)
                 for (int k = start[y * GX + x]; k < start[y * GX + x + 1]; ++k)
                     f(items[k]);
     }
 };
 
-Target sharkGetTarget(int i, const vector<Shark> &sharks,
-                      const vector<Fish> &fish, const Grid &grid);
+Target sharkGetTarget(int i, const std::vector<Shark> &sharks,
+                      const std::vector<Fish> &fish, const Grid &grid);
 
-Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
-                                const vector<Fish> &fish, MotionParams &params,
-                                const Grid &grid);
+Vector2 desiredFishAcceleration(int i, const std::vector<Shark> &sharks,
+                                const std::vector<Fish> &fish,
+                                const MotionParams &params, const Grid &grid);
 
-Vector2 desiredSharkAcceleration(int i, const vector<Shark> &sharks,
-                                 const vector<Fish> &fish,
-                                 MotionParams &params);
+Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,
+                                 const MotionParams &params);
 
 Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
                      const MotionParams &params);
@@ -158,41 +166,32 @@ Kinematics integrate(const Kinematics &kin, Commands commands,
                      const MotionParams &params, float dt);
 Hunger sharkUpdateHunger(const Shark &shark, float dt);
 
-void killFish(vector<Shark> &sharks, vector<Fish> &fish);
+void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish);
 
-void drawFish(const Fish &fish);
-void drawShark(const Shark &shark);
+void drawBody(const Kinematics &kin, float length, float width, Color color);
+
+Kinematics randomStart(float v) {
+    return {{(float)GetRandomValue(100, WINDOW_WIDTH - 100),
+             (float)GetRandomValue(100, WINDOW_HEIGHT - 100)},
+            GetRandomValue(0, 359) * DEG2RAD,
+            v,
+            0.0f};
+}
 
 int main() {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Fishes");
     SetTargetFPS(60);
 
-    MotionParams fish_params =
-        MotionParams(FISH_SPEED_MIN, FISH_SPEED_CRUISE, FISH_SPEED_MAX, 6, 0.2,
-                     0.05, 5, 0.3);
-
-    MotionParams shark_params =
-        MotionParams(SHARK_SPEED_MIN, SHARK_SPEED_CRUISE, SHARK_SPEED_MAX, 3,
-                     0.6, 0.1, 4, 0.3);
-
-    vector<Fish> fish_old(N_FISH), fish_new(N_FISH);
-    vector<Shark> sharks_old(N_SHARKS), sharks_new(N_SHARKS);
+    std::vector<Fish> fish_old(N_FISH), fish_new(N_FISH);
+    std::vector<Shark> sharks_old(N_SHARKS), sharks_new(N_SHARKS);
 
     for (Fish &f : fish_old) {
-        f.kin = {{(float)GetRandomValue(100, WINDOW_WIDTH - 100),
-                  (float)GetRandomValue(100, WINDOW_HEIGHT - 100)},
-                 GetRandomValue(0, 359) * DEG2RAD,
-                 FISH_SPEED_CRUISE,
-                 0.0f};
+        f.kin = randomStart(FISH_MOTION.v_cruise);
         f.dead = false;
     }
 
     for (Shark &s : sharks_old) {
-        s.kin = {{(float)GetRandomValue(100, WINDOW_WIDTH - 100),
-                  (float)GetRandomValue(100, WINDOW_HEIGHT - 100)},
-                 GetRandomValue(0, 359) * DEG2RAD,
-                 SHARK_SPEED_CRUISE,
-                 0.0f};
+        s.kin = randomStart(SHARK_MOTION.v_cruise);
         s.hunger.value = 0.0f;
         s.hunger.time = 0.0f;
     }
@@ -200,28 +199,27 @@ int main() {
     Grid grid;
 
     while (!WindowShouldClose()) {
-        float dt = GetFrameTime();
+        float dt = std::min(GetFrameTime(), MAX_DT);
         grid.build(fish_old);
 
 #pragma omp parallel for
         for (int i = 0; i < (int)fish_old.size(); ++i) {
             fish_new[i] = fish_old[i];
             Vector2 a = desiredFishAcceleration(i, sharks_old, fish_old,
-                                                fish_params, grid);
-            Commands cmd = getCommands(a, fish_old[i].kin, fish_params);
-            cmd = safetyFilter(cmd, fish_old[i].kin, fish_params);
-            fish_new[i].kin = integrate(fish_old[i].kin, cmd, fish_params, dt);
+                                                FISH_MOTION, grid);
+            Commands cmd = getCommands(a, fish_old[i].kin, FISH_MOTION);
+            cmd = safetyFilter(cmd, fish_old[i].kin, FISH_MOTION);
+            fish_new[i].kin = integrate(fish_old[i].kin, cmd, FISH_MOTION, dt);
             fish_new[i].dead = fish_old[i].dead;
         }
 
         for (int i = 0; i < (int)sharks_old.size(); ++i) {
             sharks_new[i] = sharks_old[i];
-            Vector2 a =
-                desiredSharkAcceleration(i, sharks_old, fish_old, shark_params);
-            Commands cmd = getCommands(a, sharks_old[i].kin, shark_params);
-            cmd = safetyFilter(cmd, sharks_old[i].kin, shark_params);
+            Vector2 a = desiredSharkAcceleration(i, sharks_old, SHARK_MOTION);
+            Commands cmd = getCommands(a, sharks_old[i].kin, SHARK_MOTION);
+            cmd = safetyFilter(cmd, sharks_old[i].kin, SHARK_MOTION);
             sharks_new[i].kin =
-                integrate(sharks_old[i].kin, cmd, shark_params, dt);
+                integrate(sharks_old[i].kin, cmd, SHARK_MOTION, dt);
             sharks_new[i].hunger = sharkUpdateHunger(sharks_old[i], dt);
             sharks_new[i].target =
                 sharkGetTarget(i, sharks_old, fish_old, grid);
@@ -233,14 +231,14 @@ int main() {
         ClearBackground(BLACK);
         for (const Fish &f : fish_new)
             if (!f.dead) {
-                drawFish(f);
+                drawBody(f.kin, FISH_LENGTH, FISH_WIDTH, FISH_COLOR);
             }
         for (const Shark &s : sharks_new)
-            drawShark(s);
+            drawBody(s.kin, SHARK_LENGTH, SHARK_WIDTH, SHARK_COLOR);
         EndDrawing();
 
-        swap(fish_old, fish_new);
-        swap(sharks_old, sharks_new);
+        std::swap(fish_old, fish_new);
+        std::swap(sharks_old, sharks_new);
     }
     CloseWindow();
     return 0;
@@ -254,14 +252,14 @@ Hunger sharkUpdateHunger(const Shark &shark, float dt) {
     }
     return hunger;
 }
-void killFish(vector<Shark> &sharks, vector<Fish> &fish) {
+void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish) {
     for (Shark &s : sharks) {
         if (s.target.index < 0) {
             continue;
         }
         Fish &target = fish[s.target.index];
         if ((s.target.distance < SHARK_EAT_DISTANCE) &&
-            (abs(Vector2Angle(s.kin.heading, target.kin.heading)) <
+            (std::abs(Vector2Angle(s.kin.heading, target.kin.heading)) <
              45 * DEG2RAD) &&
             (s.hunger.time > SHARK_EAT_DURATION)) {
             target.dead = true;
@@ -270,40 +268,17 @@ void killFish(vector<Shark> &sharks, vector<Fish> &fish) {
         }
     }
 }
-void drawShark(const Shark &shark) {
-    Vector2 v_back_1 = {
-        shark.kin.pos.x - cos(shark.kin.phi) * SHARK_LENGTH / 2 -
-            sin(shark.kin.phi) * SHARK_WIDTH / 2,
-        shark.kin.pos.y + sin(shark.kin.phi) * SHARK_LENGTH / 2 -
-            cos(shark.kin.phi) * SHARK_WIDTH / 2};
 
-    Vector2 v_back_2 = {
-        shark.kin.pos.x - cos(shark.kin.phi) * SHARK_LENGTH / 2 +
-            sin(shark.kin.phi) * SHARK_WIDTH / 2,
-        shark.kin.pos.y + sin(shark.kin.phi) * SHARK_LENGTH / 2 +
-            cos(shark.kin.phi) * SHARK_WIDTH / 2};
+void drawBody(const Kinematics &kin, float length, float width, Color color) {
+    Vector2 fwd = kin.heading;
+    Vector2 left = {fwd.y, -fwd.x};
+    Vector2 tail = kin.pos - fwd * (length / 2);
 
-    Vector2 v_front = {shark.kin.pos.x + cos(shark.kin.phi) * SHARK_LENGTH / 2,
-                       shark.kin.pos.y - sin(shark.kin.phi) * SHARK_LENGTH / 2};
+    Vector2 v_back_1 = tail + left * (width / 2);
+    Vector2 v_back_2 = tail - left * (width / 2);
+    Vector2 v_front = kin.pos + fwd * (length / 2);
 
-    DrawTriangle(v_back_1, v_back_2, v_front, SHARK_COLOR);
-}
-
-void drawFish(const Fish &fish) {
-    Vector2 v_back_1 = {fish.kin.pos.x - cos(fish.kin.phi) * FISH_LENGTH / 2 -
-                            sin(fish.kin.phi) * FISH_WIDTH / 2,
-                        fish.kin.pos.y + sin(fish.kin.phi) * FISH_LENGTH / 2 -
-                            cos(fish.kin.phi) * FISH_WIDTH / 2};
-
-    Vector2 v_back_2 = {fish.kin.pos.x - cos(fish.kin.phi) * FISH_LENGTH / 2 +
-                            sin(fish.kin.phi) * FISH_WIDTH / 2,
-                        fish.kin.pos.y + sin(fish.kin.phi) * FISH_LENGTH / 2 +
-                            cos(fish.kin.phi) * FISH_WIDTH / 2};
-
-    Vector2 v_front = {fish.kin.pos.x + cos(fish.kin.phi) * FISH_LENGTH / 2,
-                       fish.kin.pos.y - sin(fish.kin.phi) * FISH_LENGTH / 2};
-
-    DrawTriangle(v_back_1, v_back_2, v_front, FISH_COLOR);
+    DrawTriangle(v_back_1, v_back_2, v_front, color);
 }
 
 Kinematics integrate(const Kinematics &kin, Commands commands,
@@ -318,15 +293,21 @@ Kinematics integrate(const Kinematics &kin, Commands commands,
     float phi = kin.phi + kin.r * dt;
     float v = kin.v + v_dot * dt;
     float r = kin.r + r_dot * dt;
-    return Kinematics(pos, phi, v, r);
+    Vector2 heading = {std::cos(phi), -std::sin(phi)};
+    return {pos, phi, v, r, heading};
 }
 
 inline float wallRamp(float d) {
     return Clamp(1.0f - d / WALL_BUFFER_DIST, 0.0f, 1.0f);
 }
 
-Target sharkGetTarget(int i, const vector<Shark> &sharks,
-                      const vector<Fish> &fish, const Grid &grid) {
+Vector2 wallRepulsion(Vector2 pos) {
+    return {wallRamp(pos.x) - wallRamp(WINDOW_WIDTH - pos.x),
+            wallRamp(pos.y) - wallRamp(WINDOW_HEIGHT - pos.y)};
+}
+
+Target sharkGetTarget(int i, const std::vector<Shark> &sharks,
+                      const std::vector<Fish> &fish, const Grid &grid) {
     const Kinematics &self = sharks[i].kin;
     int closest = -1;
     float closest_distance = SHARK_SIGHT_RANGE;
@@ -347,14 +328,13 @@ Target sharkGetTarget(int i, const vector<Shark> &sharks,
     return {closest, closest_relative_pos, closest_distance};
 }
 
-Vector2 desiredSharkAcceleration(int i, const vector<Shark> &sharks,
-                                 const vector<Fish> &fish,
-                                 MotionParams &params) {
+Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,
+                                 const MotionParams &params) {
 
     const Shark &self = sharks[i];
     Vector2 a_sep{}, a_chase{};
 
-    for (int j = 0; j < sharks.size(); j++) {
+    for (int j = 0; j < (int)sharks.size(); j++) {
         if (j == i) {
             continue;
         }
@@ -368,15 +348,11 @@ Vector2 desiredSharkAcceleration(int i, const vector<Shark> &sharks,
         }
     }
 
-    Vector2 a_walls{0, 0};
-    a_walls.x += wallRamp(self.kin.pos.x);
-    a_walls.x -= wallRamp(WINDOW_WIDTH - self.kin.pos.x);
-    a_walls.y += wallRamp(self.kin.pos.y);
-    a_walls.y -= wallRamp(WINDOW_HEIGHT - self.kin.pos.y);
+    Vector2 a_walls = wallRepulsion(self.kin.pos);
 
     Vector2 a_cruise = self.kin.heading * (params.v_cruise - self.kin.v);
 
-    if (self.target.index >= 0) {
+    if (self.target.index >= 0 && self.target.distance > 1e-6f) {
         a_chase = self.target.relative_pos *
                   (1.0f - self.target.distance / SHARK_SIGHT_RANGE) /
                   self.target.distance;
@@ -387,9 +363,9 @@ Vector2 desiredSharkAcceleration(int i, const vector<Shark> &sharks,
     return a_des;
 }
 
-Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
-                                const vector<Fish> &fish, MotionParams &params,
-                                const Grid &grid) {
+Vector2 desiredFishAcceleration(int i, const std::vector<Shark> &sharks,
+                                const std::vector<Fish> &fish,
+                                const MotionParams &params, const Grid &grid) {
 
     const Kinematics &self = fish[i].kin;
 
@@ -413,7 +389,7 @@ Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
         }
         adj_fish++;
         sum_pos += relative_pos;
-        sum_vel += Vector2{cos(other.phi), -sin(other.phi)} * other.v;
+        sum_vel += other.heading * other.v;
     });
 
     if (adj_fish > 0) {
@@ -421,18 +397,14 @@ Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
         a_align = (sum_vel / adj_fish) - self.heading * self.v;
     }
 
-    Vector2 a_walls{0, 0};
-    a_walls.x += wallRamp(self.pos.x);
-    a_walls.x -= wallRamp(WINDOW_WIDTH - self.pos.x);
-    a_walls.y += wallRamp(self.pos.y);
-    a_walls.y -= wallRamp(WINDOW_HEIGHT - self.pos.y);
+    Vector2 a_walls = wallRepulsion(self.pos);
 
     Vector2 a_cruise = self.heading * (params.v_cruise - self.v);
 
     for (const Shark &s : sharks) {
         Vector2 relative_pos = s.kin.pos - self.pos;
         float distance = Vector2Length(relative_pos);
-        if (distance > (FISH_FLEE_RANGE)) {
+        if (distance > (FISH_FLEE_RANGE) || distance < 1e-6f) {
             continue;
         }
         a_flee -= relative_pos * (1.0f - distance / FISH_FLEE_RANGE) / distance;
@@ -447,11 +419,12 @@ Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
                      const MotionParams &params) {
     Vector2 v_des = kin.v * kin.heading + a_des_world * params.tau;
 
-    float phi_des = atan2(-v_des.y, v_des.x);
+    float phi_des = std::atan2(-v_des.y, v_des.x);
     float e_phi = Wrap(phi_des - kin.phi, -PI, PI);
 
     float r_cmd = Clamp(params.K_phi * e_phi, -params.r_max, params.r_max);
-    float v_cmd = Clamp(hypot(v_des.x, v_des.y), params.v_min, params.v_max);
+    float v_cmd =
+        Clamp(std::hypot(v_des.x, v_des.y), params.v_min, params.v_max);
     return {v_cmd, r_cmd};
 };
 
@@ -485,13 +458,13 @@ Commands safetyFilter(Commands cmd, const Kinematics &kin,
 
     Vector2 n = nearWallNormal(kin.pos);
     bool heading_out = Vector2DotProduct(fwd, n) > 0.0f;
-    if (heading_out || max(clearPos, clearNeg) >= margin)
+    if (heading_out || std::max(clearPos, clearNeg) >= margin)
         return cmd;
     float turn;
-    if (fabsf(clearPos - clearNeg) < 1.0f)
+    if (std::abs(clearPos - clearNeg) < 1.0f)
         turn = (kin.r >= 0.0f) ? 1.0f : -1.0f;
     else
         turn = (clearPos > clearNeg) ? 1.0f : -1.0f;
 
-    return {min(cmd.v_cmd, params.v_cruise), turn * params.r_max};
+    return {std::min(cmd.v_cmd, params.v_cruise), turn * params.r_max};
 }
