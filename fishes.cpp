@@ -84,7 +84,7 @@ struct Hunger {
 
 struct Shark {
     Kinematics kin;
-    Target target{-1, {NAN, NAN}, -INFINITY};
+    Target target{-1, {0, 0}, 0};
     Hunger hunger;
 };
 
@@ -93,11 +93,48 @@ struct Commands {
     float r_cmd;
 };
 
+constexpr float CELL = FISH_SIGHT_RANGE;
+constexpr int GX = (int)(WINDOW_WIDTH / CELL) + 1;
+constexpr int GY = (int)(WINDOW_HEIGHT / CELL) + 1;
+
+struct Grid {
+    vector<int> start =
+        vector<int>(GX * GY + 1); // start[c]..start[c+1] = fish in cell c
+    vector<int> fill = vector<int>(GX * GY);
+    vector<int> items; // fish indices sorted by cell
+
+    static int cx(float x) { return clamp((int)(x / CELL), 0, GX - 1); }
+    static int cy(float y) { return clamp((int)(y / CELL), 0, GY - 1); }
+
+    void build(const vector<Fish> &fish) {
+        std::fill(start.begin(), start.end(), 0);
+        items.resize(fish.size());
+        for (const Fish &f : fish)
+            start[cy(f.kin.pos.y) * GX + cx(f.kin.pos.x) + 1]++;
+        for (int c = 0; c < GX * GY; ++c)
+            start[c + 1] += start[c];
+        copy(start.begin(), start.end() - 1, fill.begin());
+        for (int i = 0; i < (int)fish.size(); ++i) {
+            const Vector2 &p = fish[i].kin.pos;
+            items[fill[cy(p.y) * GX + cx(p.x)]++] = i;
+        }
+    }
+
+    template <class F> void forNeighbours(Vector2 p, F &&f) const {
+        int x0 = cx(p.x), y0 = cy(p.y);
+        for (int y = max(y0 - 1, 0); y <= min(y0 + 1, GY - 1); ++y)
+            for (int x = max(x0 - 1, 0); x <= min(x0 + 1, GX - 1); ++x)
+                for (int k = start[y * GX + x]; k < start[y * GX + x + 1]; ++k)
+                    f(items[k]);
+    }
+};
+
 Target sharkGetTarget(int i, const vector<Shark> &sharks,
-                      const vector<Fish> &fish);
+                      const vector<Fish> &fish, const Grid &grid);
 
 Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
-                                const vector<Fish> &fish, MotionParams &params);
+                                const vector<Fish> &fish, MotionParams &params,
+                                const Grid &grid);
 
 Vector2 desiredSharkAcceleration(int i, const vector<Shark> &sharks,
                                  const vector<Fish> &fish,
@@ -151,21 +188,28 @@ int main() {
         s.hunger.value = 0.0f;
         s.hunger.time = 0.0f;
     }
+
+    Grid grid;
+
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
+        grid.build(fish_old);
+
+#pragma omp parallel for
 
         for (int i = 0; i < (int)fish_old.size(); ++i) {
-            fish_new[i]=fish_old[i];
-            Vector2 a =
-                desiredFishAcceleration(i, sharks_old, fish_old, fish_params);
+            fish_new[i] = fish_old[i];
+            Vector2 a = desiredFishAcceleration(i, sharks_old, fish_old,
+                                                fish_params, grid);
             Commands cmd = getCommands(a, fish_old[i].kin, fish_params);
             cmd = safetyFilter(cmd, fish_old[i].kin, fish_params);
             fish_new[i].kin = integrate(fish_old[i].kin, cmd, fish_params, dt);
             fish_new[i].dead = fish_old[i].dead;
         }
+#pragma omp parallel for
 
         for (int i = 0; i < (int)sharks_old.size(); ++i) {
-            sharks_new[i]=sharks_old[i];
+            sharks_new[i] = sharks_old[i];
             Vector2 a =
                 desiredSharkAcceleration(i, sharks_old, fish_old, shark_params);
             Commands cmd = getCommands(a, sharks_old[i].kin, shark_params);
@@ -173,7 +217,8 @@ int main() {
             sharks_new[i].kin =
                 integrate(sharks_old[i].kin, cmd, shark_params, dt);
             sharks_new[i].hunger = sharkUpdateHunger(sharks_old[i], dt);
-            sharks_new[i].target = sharkGetTarget(i, sharks_old, fish_old);
+            sharks_new[i].target =
+                sharkGetTarget(i, sharks_old, fish_old, grid);
         }
 
         killFish(sharks_new, fish_new);
@@ -275,14 +320,14 @@ inline float wallRamp(float d) {
 }
 
 Target sharkGetTarget(int i, const vector<Shark> &sharks,
-                      const vector<Fish> &fish) {
+                      const vector<Fish> &fish, const Grid &grid) {
     const Kinematics &self = sharks[i].kin;
     int closest = -1;
-    float closest_distance = INFINITY;
-    Vector2 closest_relative_pos = {NAN, NAN};
-    for (int f = 0; f < fish.size(); f++) {
+    float closest_distance = SHARK_SIGHT_RANGE;
+    Vector2 closest_relative_pos = {0.0f, 0.0f};
+    grid.forNeighbours(self.pos, [&](int f) {
         if (fish[f].dead) {
-            continue;
+            return;
         }
         const Kinematics &candidate = fish[f].kin;
         Vector2 candidate_relative_pos = candidate.pos - self.pos;
@@ -292,7 +337,7 @@ Target sharkGetTarget(int i, const vector<Shark> &sharks,
             closest_distance = distance;
             closest_relative_pos = candidate_relative_pos;
         }
-    }
+    });
     return {closest, closest_relative_pos, closest_distance};
 }
 
@@ -337,23 +382,23 @@ Vector2 desiredSharkAcceleration(int i, const vector<Shark> &sharks,
 }
 
 Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
-                                const vector<Fish> &fish,
-                                MotionParams &params) {
+                                const vector<Fish> &fish, MotionParams &params,
+                                const Grid &grid) {
 
     const Kinematics &self = fish[i].kin;
 
     Vector2 a_sep{}, a_coh{}, a_align{}, a_flee{}, sum_pos{}, sum_vel{};
 
     int adj_fish = 0;
-    for (int j = 0; j < fish.size(); j++) {
+    grid.forNeighbours(self.pos, [&](int j) {
         if ((j == i) || fish[j].dead) {
-            continue;
+            return;
         }
         const Kinematics &other = fish[j].kin;
         Vector2 relative_pos = other.pos - self.pos;
         float distance = Vector2Length(relative_pos);
         if (distance > (FISH_SIGHT_RANGE)) {
-            continue;
+            return;
         }
         if (distance < (FISH_COMFORT_RANGE) && distance > 1e-6f) {
 
@@ -363,7 +408,7 @@ Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
         adj_fish++;
         sum_pos += relative_pos;
         sum_vel += Vector2{cos(other.phi), -sin(other.phi)} * other.v;
-    }
+    });
 
     if (adj_fish > 0) {
         a_coh = sum_pos / adj_fish;
