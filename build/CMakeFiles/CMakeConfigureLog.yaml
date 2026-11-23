@@ -1424,3 +1424,363 @@ events:
         - "/Network/Library/Frameworks"
         - "/System/Library/Frameworks"
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:335 (try_compile)"
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:643 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:16 (find_package)"
+    description: "Detecting CXX OpenMP compiler info"
+    directories:
+      source: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-ayXQJZ"
+      binary: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-ayXQJZ"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-ffast-math -mcpu=native"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_COMPILE_RESULT_CXX_Xclang fopenmp"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-ayXQJZ'
+        
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_5bfb1/fast
+        /Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_5bfb1.dir/build.make CMakeFiles/cmTC_5bfb1.dir/build
+        Building CXX object CMakeFiles/cmTC_5bfb1.dir/OpenMPTryFlag.cpp.o
+        /usr/bin/c++   -ffast-math -mcpu=native -Xclang -fopenmp -std=gnu++20 -arch arm64 -MD -MT CMakeFiles/cmTC_5bfb1.dir/OpenMPTryFlag.cpp.o -MF CMakeFiles/cmTC_5bfb1.dir/OpenMPTryFlag.cpp.o.d -o CMakeFiles/cmTC_5bfb1.dir/OpenMPTryFlag.cpp.o -c /Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-ayXQJZ/OpenMPTryFlag.cpp
+        /Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-ayXQJZ/OpenMPTryFlag.cpp:2:10: fatal error: 'omp.h' file not found
+            2 | #include <omp.h>
+              |          ^~~~~~~
+        1 error generated.
+        make[1]: *** [CMakeFiles/cmTC_5bfb1.dir/OpenMPTryFlag.cpp.o] Error 1
+        make: *** [cmTC_5bfb1/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:428 (find_library)"
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:643 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:16 (find_package)"
+    mode: "library"
+    variable: "OpenMP_libomp_LIBRARY"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "omp"
+      - "gomp"
+      - "iomp5"
+    candidate_directories:
+      - "/opt/homebrew/opt/libomp/lib/"
+      - "/opt/homebrew/opt/libomp/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/swift/"
+      - "/Users/martinfredholm/.local/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/Library/Apple/usr/bin/"
+      - "/Library/TeX/texbin/"
+      - "/usr/local/go/bin/"
+      - "/Users/martinfredholm/Applications/iTerm.app/Contents/Resources/utilities/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/"
+      - "/opt/homebrew/lib/"
+      - "/opt/homebrew/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/opt/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/"
+      - "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/"
+      - "/Library/Frameworks/"
+      - "/System/Library/Frameworks/"
+    found: "/opt/homebrew/opt/libomp/lib/libomp.dylib"
+    search_context:
+      package_stack:
+        -
+          package_paths:
+            - "/opt/homebrew/opt/libomp"
+      ENV{PATH}:
+        - "/Users/martinfredholm/.local/bin"
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/Library/Apple/usr/bin"
+        - "/Library/TeX/texbin"
+        - "/usr/local/go/bin"
+        - "/Users/martinfredholm/Applications/iTerm.app/Contents/Resources/utilities"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "~/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Library/Frameworks"
+        - "/Library/Frameworks"
+        - "/Network/Library/Frameworks"
+        - "/System/Library/Frameworks"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:438 (try_compile)"
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:643 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:16 (find_package)"
+    description: "Trying CXX OpenMP compiler with '/opt/homebrew/opt/libomp/lib/libomp.dylib'"
+    directories:
+      source: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-rhoWZK"
+      binary: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-rhoWZK"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-ffast-math -mcpu=native"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_COMPILE_RESULT_CXX_Xclang fopenmp"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-rhoWZK'
+        
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_ff074/fast
+        /Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_ff074.dir/build.make CMakeFiles/cmTC_ff074.dir/build
+        Building CXX object CMakeFiles/cmTC_ff074.dir/OpenMPTryFlag.cpp.o
+        /usr/bin/c++   -ffast-math -mcpu=native  -std=gnu++20 -arch arm64   -Xclang -fopenmp -MD -MT CMakeFiles/cmTC_ff074.dir/OpenMPTryFlag.cpp.o -MF CMakeFiles/cmTC_ff074.dir/OpenMPTryFlag.cpp.o.d -o CMakeFiles/cmTC_ff074.dir/OpenMPTryFlag.cpp.o -c /Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-rhoWZK/OpenMPTryFlag.cpp
+        /Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-rhoWZK/OpenMPTryFlag.cpp:2:10: fatal error: 'omp.h' file not found
+            2 | #include <omp.h>
+              |          ^~~~~~~
+        1 error generated.
+        make[1]: *** [CMakeFiles/cmTC_ff074.dir/OpenMPTryFlag.cpp.o] Error 1
+        make: *** [cmTC_ff074/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:445 (find_path)"
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:643 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:16 (find_package)"
+    mode: "path"
+    variable: "OpenMP_CXX_INCLUDE_DIR"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "omp.h"
+    candidate_directories:
+      - "/opt/homebrew/opt/libomp/include/"
+      - "/opt/homebrew/opt/libomp/"
+      - "/Users/martinfredholm/.local/bin/"
+      - "/opt/homebrew/bin/"
+      - "/opt/homebrew/sbin/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin/"
+      - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin/"
+      - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin/"
+      - "/Library/Apple/usr/bin/"
+      - "/Library/TeX/texbin/"
+      - "/usr/local/go/bin/"
+      - "/Users/martinfredholm/Applications/iTerm.app/Contents/Resources/utilities/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/"
+      - "/opt/homebrew/include/"
+      - "/opt/homebrew/"
+      - "/usr/local/include/"
+      - "/usr/local/"
+      - "/usr/include/"
+      - "/usr/"
+      - "/include/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/"
+      - "/opt/include/"
+      - "/opt/"
+      - "/sw/include/"
+      - "/sw/"
+      - "/opt/local/include/"
+      - "/opt/local/"
+      - "/usr/include/X11/"
+      - "/Users/martinfredholm/Library/Frameworks/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Library/Frameworks/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Network/Library/Frameworks/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/"
+      - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks/"
+      - "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/"
+      - "/Library/Frameworks/"
+      - "/Network/Library/Frameworks/"
+      - "/System/Library/Frameworks/"
+    found: "/opt/homebrew/opt/libomp/include/"
+    search_context:
+      package_stack:
+        -
+          package_paths:
+            - "/opt/homebrew/opt/libomp"
+      ENV{PATH}:
+        - "/Users/martinfredholm/.local/bin"
+        - "/opt/homebrew/bin"
+        - "/opt/homebrew/sbin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/Library/Apple/usr/bin"
+        - "/Library/TeX/texbin"
+        - "/usr/local/go/bin"
+        - "/Users/martinfredholm/Applications/iTerm.app/Contents/Resources/utilities"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/opt/homebrew"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "~/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks"
+        - "/Applications/Xcode.app/Contents/Developer/Library/Frameworks"
+        - "/Library/Frameworks"
+        - "/Network/Library/Frameworks"
+        - "/System/Library/Frameworks"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:449 (try_compile)"
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:643 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:16 (find_package)"
+    description: "Trying CXX OpenMP compiler with '/opt/homebrew/opt/libomp/lib/libomp.dylib' and '/opt/homebrew/opt/libomp/include'"
+    directories:
+      source: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-mtJNbX"
+      binary: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-mtJNbX"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-ffast-math -mcpu=native"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_COMPILE_RESULT_CXX_Xclang fopenmp"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-mtJNbX'
+        
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_dd34d/fast
+        /Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_dd34d.dir/build.make CMakeFiles/cmTC_dd34d.dir/build
+        Building CXX object CMakeFiles/cmTC_dd34d.dir/OpenMPTryFlag.cpp.o
+        /usr/bin/c++  -I/opt/homebrew/opt/libomp/include -ffast-math -mcpu=native  -std=gnu++20 -arch arm64   -Xclang -fopenmp -MD -MT CMakeFiles/cmTC_dd34d.dir/OpenMPTryFlag.cpp.o -MF CMakeFiles/cmTC_dd34d.dir/OpenMPTryFlag.cpp.o.d -o CMakeFiles/cmTC_dd34d.dir/OpenMPTryFlag.cpp.o -c /Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-mtJNbX/OpenMPTryFlag.cpp
+        Linking CXX executable cmTC_dd34d
+        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_dd34d.dir/link.txt --verbose=1
+        /usr/bin/c++ -ffast-math -mcpu=native  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_dd34d.dir/OpenMPTryFlag.cpp.o -o cmTC_dd34d  /opt/homebrew/opt/libomp/lib/libomp.dylib
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:577 (try_compile)"
+      - "/opt/homebrew/share/cmake/Modules/FindOpenMP.cmake:717 (_OPENMP_GET_SPEC_DATE)"
+      - "CMakeLists.txt:16 (find_package)"
+    description: "Detecting CXX OpenMP version"
+    directories:
+      source: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-XEFDNe"
+      binary: "/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-XEFDNe"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-ffast-math -mcpu=native"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_SPECTEST_CXX_"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-XEFDNe'
+        
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_43c11/fast
+        /Applications/Xcode.app/Contents/Developer/usr/bin/make  -f CMakeFiles/cmTC_43c11.dir/build.make CMakeFiles/cmTC_43c11.dir/build
+        Building CXX object CMakeFiles/cmTC_43c11.dir/OpenMPCheckVersion.cpp.o
+        /usr/bin/c++  -I/opt/homebrew/opt/libomp/include -ffast-math -mcpu=native -Xclang -fopenmp -std=gnu++20 -arch arm64 -MD -MT CMakeFiles/cmTC_43c11.dir/OpenMPCheckVersion.cpp.o -MF CMakeFiles/cmTC_43c11.dir/OpenMPCheckVersion.cpp.o.d -o CMakeFiles/cmTC_43c11.dir/OpenMPCheckVersion.cpp.o -c /Users/martinfredholm/Documents/Fishes/build/CMakeFiles/CMakeScratch/TryCompile-XEFDNe/OpenMPCheckVersion.cpp
+        Linking CXX executable cmTC_43c11
+        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_43c11.dir/link.txt --verbose=1
+        /usr/bin/c++ -ffast-math -mcpu=native -Xclang -fopenmp -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_43c11.dir/OpenMPCheckVersion.cpp.o -o cmTC_43c11
+        
+      exitCode: 0
+...

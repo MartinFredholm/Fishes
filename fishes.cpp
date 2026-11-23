@@ -196,7 +196,6 @@ int main() {
         grid.build(fish_old);
 
 #pragma omp parallel for
-
         for (int i = 0; i < (int)fish_old.size(); ++i) {
             fish_new[i] = fish_old[i];
             Vector2 a = desiredFishAcceleration(i, sharks_old, fish_old,
@@ -206,7 +205,6 @@ int main() {
             fish_new[i].kin = integrate(fish_old[i].kin, cmd, fish_params, dt);
             fish_new[i].dead = fish_old[i].dead;
         }
-#pragma omp parallel for
 
         for (int i = 0; i < (int)sharks_old.size(); ++i) {
             sharks_new[i] = sharks_old[i];

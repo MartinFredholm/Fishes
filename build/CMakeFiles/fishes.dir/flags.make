@@ -4,9 +4,9 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -DUSE_LIBTYPE_SHARED
 
-CXX_INCLUDES = -isystem /opt/homebrew/include
+CXX_INCLUDES = -isystem /opt/homebrew/include -isystem /opt/homebrew/opt/libomp/include
 
-CXX_FLAGSarm64 = -ffast-math -mcpu=native -O3 -DNDEBUG -std=gnu++20 -arch arm64 -F/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/System/Library/Frameworks 
+CXX_FLAGSarm64 = -ffast-math -mcpu=native -O3 -DNDEBUG -std=gnu++20 -arch arm64 -F/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/System/Library/Frameworks  -Xclang -fopenmp
 
-CXX_FLAGS = -ffast-math -mcpu=native -O3 -DNDEBUG -std=gnu++20 -arch arm64 -F/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/System/Library/Frameworks 
+CXX_FLAGS = -ffast-math -mcpu=native -O3 -DNDEBUG -std=gnu++20 -arch arm64 -F/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/System/Library/Frameworks  -Xclang -fopenmp
 
