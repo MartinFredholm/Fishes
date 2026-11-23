@@ -93,9 +93,9 @@ struct Commands {
     float r_cmd;
 };
 
-constexpr float CELL = FISH_SIGHT_RANGE;
-constexpr int GX = (int)(WINDOW_WIDTH / CELL) + 1;
-constexpr int GY = (int)(WINDOW_HEIGHT / CELL) + 1;
+constexpr float GRID_CELL_SIZE = 100.0f;
+constexpr int GX = (int)(WINDOW_WIDTH / GRID_CELL_SIZE) + 1;
+constexpr int GY = (int)(WINDOW_HEIGHT / GRID_CELL_SIZE) + 1;
 
 struct Grid {
     vector<int> start =
@@ -103,8 +103,12 @@ struct Grid {
     vector<int> fill = vector<int>(GX * GY);
     vector<int> items; // fish indices sorted by cell
 
-    static int cx(float x) { return clamp((int)(x / CELL), 0, GX - 1); }
-    static int cy(float y) { return clamp((int)(y / CELL), 0, GY - 1); }
+    static int cx(float x) {
+        return clamp((int)(x / GRID_CELL_SIZE), 0, GX - 1);
+    }
+    static int cy(float y) {
+        return clamp((int)(y / GRID_CELL_SIZE), 0, GY - 1);
+    }
 
     void build(const vector<Fish> &fish) {
         std::fill(start.begin(), start.end(), 0);
@@ -120,10 +124,14 @@ struct Grid {
         }
     }
 
-    template <class F> void forNeighbours(Vector2 p, F &&f) const {
+    template <class F>
+    void forFishInCellsAround(Vector2 p, float radius, F &&f) const {
+        int cell_reach = (int)ceilf(radius / GRID_CELL_SIZE);
         int x0 = cx(p.x), y0 = cy(p.y);
-        for (int y = max(y0 - 1, 0); y <= min(y0 + 1, GY - 1); ++y)
-            for (int x = max(x0 - 1, 0); x <= min(x0 + 1, GX - 1); ++x)
+        for (int y = max(y0 - cell_reach, 0); y <= min(y0 + cell_reach, GY - 1);
+             ++y)
+            for (int x = max(x0 - cell_reach, 0);
+                 x <= min(x0 + cell_reach, GX - 1); ++x)
                 for (int k = start[y * GX + x]; k < start[y * GX + x + 1]; ++k)
                     f(items[k]);
     }
@@ -323,7 +331,7 @@ Target sharkGetTarget(int i, const vector<Shark> &sharks,
     int closest = -1;
     float closest_distance = SHARK_SIGHT_RANGE;
     Vector2 closest_relative_pos = {0.0f, 0.0f};
-    grid.forNeighbours(self.pos, [&](int f) {
+    grid.forFishInCellsAround(self.pos, SHARK_SIGHT_RANGE, [&](int f) {
         if (fish[f].dead) {
             return;
         }
@@ -388,7 +396,7 @@ Vector2 desiredFishAcceleration(int i, const vector<Shark> &sharks,
     Vector2 a_sep{}, a_coh{}, a_align{}, a_flee{}, sum_pos{}, sum_vel{};
 
     int adj_fish = 0;
-    grid.forNeighbours(self.pos, [&](int j) {
+    grid.forFishInCellsAround(self.pos, FISH_SIGHT_RANGE, [&](int j) {
         if ((j == i) || fish[j].dead) {
             return;
         }
