@@ -18,54 +18,63 @@ struct MotionParams {
 constexpr int N_FISH = 1000;
 constexpr int N_SHARKS = 2;
 
-constexpr float FISH_WIDTH = 10.0f;
-constexpr float FISH_LENGTH = 20.0f;
+// Simulation units are meters and seconds; pixels appear only when drawing.
+constexpr float METERS_PER_PIXEL = 0.01f;
+
+constexpr float FISH_WIDTH = 0.1f;
+constexpr float FISH_LENGTH = 0.2f;
 constexpr Color FISH_COLOR = BLUE;
 
-constexpr MotionParams FISH_MOTION = {.v_min = 5.0f,
-                                      .v_cruise = 70.0f,
-                                      .v_max = 100.0f,
+constexpr MotionParams FISH_MOTION = {.v_min = 0.15f,
+                                      .v_cruise = 0.6f,
+                                      .v_max = 1.0f,
                                       .r_max = 6.0f,
                                       .T_v = 0.2f,
                                       .T_r = 0.05f,
                                       .K_phi = 5.0f,
                                       .tau = 0.3f};
 
-constexpr float FISH_SIGHT_RANGE = 100.0f;
-constexpr float FISH_FLEE_RANGE = 180.0f;
-constexpr float FISH_COMFORT_RANGE = 40.0f;
+constexpr float FISH_SIGHT_RANGE = 1.0f;
+constexpr float FISH_FLEE_RANGE = 1.8f;
+constexpr float FISH_COMFORT_RANGE = 0.4f;
 
-constexpr float SHARK_WIDTH = 20.0f;
-constexpr float SHARK_LENGTH = 40.0f;
+constexpr float SHARK_WIDTH = 0.2f;
+constexpr float SHARK_LENGTH = 0.4f;
 constexpr Color SHARK_COLOR = RED;
 
-constexpr MotionParams SHARK_MOTION = {.v_min = 50.0f,
-                                       .v_cruise = 60.0f,
-                                       .v_max = 120.0f,
+constexpr MotionParams SHARK_MOTION = {.v_min = 0.4f,
+                                       .v_cruise = 0.5f,
+                                       .v_max = 1.2f,
                                        .r_max = 3.0f,
                                        .T_v = 0.6f,
                                        .T_r = 0.1f,
                                        .K_phi = 4.0f,
                                        .tau = 0.3f};
 
-constexpr float SHARK_SIGHT_RANGE = 200.0f;
-constexpr float SHARK_COMFORT_RANGE = 60.0f;
-constexpr float SHARK_HUNGER_RATE = 0.1f;
-constexpr float SHARK_EAT_DISTANCE = 15.0f;
+constexpr float SHARK_SIGHT_RANGE = 2.0f;
+constexpr float SHARK_COMFORT_RANGE = 0.6f;
+constexpr float SHARK_HUNGER_RATE = 0.05f;
+constexpr float SHARK_EAT_DISTANCE = 0.15f;
 constexpr float SHARK_EAT_DURATION = 5.0f;
 
 constexpr int WINDOW_WIDTH = 1500;
 constexpr int WINDOW_HEIGHT = 800;
+constexpr float WORLD_WIDTH = WINDOW_WIDTH * METERS_PER_PIXEL;
+constexpr float WORLD_HEIGHT = WINDOW_HEIGHT * METERS_PER_PIXEL;
+constexpr float SPAWN_MARGIN = 1.0f;
 constexpr float MAX_DT = 1.0f / 30.0f;
 
-constexpr float WALL_BUFFER_DIST = 100.0f;
-constexpr float W_WALLS = 500.0f;
+constexpr float WALL_BUFFER_DIST = 1.0f;
+constexpr float SAFETY_MARGIN = 0.2f;
+constexpr float CLEARANCE_TIE = 0.01f;
+// W_COHERENCE is in 1/s^2; the other W_ weights are in m/s^2.
+constexpr float W_WALLS = 5.0f;
 constexpr float T_ALIGN = 0.5f;
 constexpr float T_CRUISE = 0.5f;
 constexpr float W_COHERENCE = 2.0f;
-constexpr float W_SEPERATION = 90.0f;
-constexpr float W_FLEE = 300.0f;
-constexpr float W_CHASE = 300.0f;
+constexpr float W_SEPERATION = 0.9f;
+constexpr float W_FLEE = 3.0f;
+constexpr float W_CHASE = 3.0f;
 
 struct Kinematics {
     Vector2 pos{};
@@ -102,9 +111,9 @@ struct Commands {
     float r_cmd;
 };
 
-constexpr float GRID_CELL_SIZE = 100.0f;
-constexpr int GX = (int)(WINDOW_WIDTH / GRID_CELL_SIZE) + 1;
-constexpr int GY = (int)(WINDOW_HEIGHT / GRID_CELL_SIZE) + 1;
+constexpr float GRID_CELL_SIZE = 1.0f;
+constexpr int GX = (int)(WORLD_WIDTH / GRID_CELL_SIZE) + 1;
+constexpr int GY = (int)(WORLD_HEIGHT / GRID_CELL_SIZE) + 1;
 
 struct Grid {
     std::vector<int> start =
@@ -170,9 +179,14 @@ void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish);
 
 void drawBody(const Kinematics &kin, float length, float width, Color color);
 
+float randomUniform(float lo, float hi) {
+    constexpr int RESOLUTION = 1 << 20;
+    return lo + (hi - lo) * (float)GetRandomValue(0, RESOLUTION) / RESOLUTION;
+}
+
 Kinematics randomStart(float v) {
-    return {{(float)GetRandomValue(100, WINDOW_WIDTH - 100),
-             (float)GetRandomValue(100, WINDOW_HEIGHT - 100)},
+    return {{randomUniform(SPAWN_MARGIN, WORLD_WIDTH - SPAWN_MARGIN),
+             randomUniform(SPAWN_MARGIN, WORLD_HEIGHT - SPAWN_MARGIN)},
             GetRandomValue(0, 359) * DEG2RAD,
             v,
             0.0f};
@@ -205,12 +219,14 @@ int main() {
 #pragma omp parallel for
         for (int i = 0; i < (int)fish_old.size(); ++i) {
             fish_new[i] = fish_old[i];
+            if (fish_old[i].dead) {
+                continue;
+            }
             Vector2 a = desiredFishAcceleration(i, sharks_old, fish_old,
                                                 FISH_MOTION, grid);
             Commands cmd = getCommands(a, fish_old[i].kin, FISH_MOTION);
             cmd = safetyFilter(cmd, fish_old[i].kin, FISH_MOTION);
             fish_new[i].kin = integrate(fish_old[i].kin, cmd, FISH_MOTION, dt);
-            fish_new[i].dead = fish_old[i].dead;
         }
 
         for (int i = 0; i < (int)sharks_old.size(); ++i) {
@@ -269,6 +285,8 @@ void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish) {
     }
 }
 
+Vector2 toPixels(Vector2 p) { return p / METERS_PER_PIXEL; }
+
 void drawBody(const Kinematics &kin, float length, float width, Color color) {
     Vector2 fwd = kin.heading;
     Vector2 left = {fwd.y, -fwd.x};
@@ -278,7 +296,8 @@ void drawBody(const Kinematics &kin, float length, float width, Color color) {
     Vector2 v_back_2 = tail - left * (width / 2);
     Vector2 v_front = kin.pos + fwd * (length / 2);
 
-    DrawTriangle(v_back_1, v_back_2, v_front, color);
+    DrawTriangle(toPixels(v_back_1), toPixels(v_back_2), toPixels(v_front),
+                 color);
 }
 
 Kinematics integrate(const Kinematics &kin, Commands commands,
@@ -302,8 +321,8 @@ inline float wallRamp(float d) {
 }
 
 Vector2 wallRepulsion(Vector2 pos) {
-    return {wallRamp(pos.x) - wallRamp(WINDOW_WIDTH - pos.x),
-            wallRamp(pos.y) - wallRamp(WINDOW_HEIGHT - pos.y)};
+    return {wallRamp(pos.x) - wallRamp(WORLD_WIDTH - pos.x),
+            wallRamp(pos.y) - wallRamp(WORLD_HEIGHT - pos.y)};
 }
 
 Target sharkGetTarget(int i, const std::vector<Shark> &sharks,
@@ -430,18 +449,18 @@ Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
 
 float circleClearance(Vector2 c, float R) {
     return std::min(
-        {c.x - R, WINDOW_WIDTH - c.x - R, c.y - R, WINDOW_HEIGHT - c.y - R});
+        {c.x - R, WORLD_WIDTH - c.x - R, c.y - R, WORLD_HEIGHT - c.y - R});
 }
 
 Vector2 nearWallNormal(Vector2 p) {
     Vector2 n{0, 0};
     if (p.x < WALL_BUFFER_DIST)
         n.x += 1;
-    if (p.x > WINDOW_WIDTH - WALL_BUFFER_DIST)
+    if (p.x > WORLD_WIDTH - WALL_BUFFER_DIST)
         n.x -= 1;
     if (p.y < WALL_BUFFER_DIST)
         n.y += 1;
-    if (p.y > WINDOW_HEIGHT - WALL_BUFFER_DIST)
+    if (p.y > WORLD_HEIGHT - WALL_BUFFER_DIST)
         n.y -= 1;
     return n;
 }
@@ -451,7 +470,7 @@ Commands safetyFilter(Commands cmd, const Kinematics &kin,
     Vector2 fwd = kin.heading;
     Vector2 left = {fwd.y, -fwd.x};
     float R = kin.v / params.r_max;
-    float margin = kin.v * params.T_r + 20.0f;
+    float margin = kin.v * params.T_r + SAFETY_MARGIN;
 
     float clearPos = circleClearance(kin.pos + left * R, R);
     float clearNeg = circleClearance(kin.pos - left * R, R);
@@ -461,7 +480,7 @@ Commands safetyFilter(Commands cmd, const Kinematics &kin,
     if (heading_out || std::max(clearPos, clearNeg) >= margin)
         return cmd;
     float turn;
-    if (std::abs(clearPos - clearNeg) < 1.0f)
+    if (std::abs(clearPos - clearNeg) < CLEARANCE_TIE)
         turn = (kin.r >= 0.0f) ? 1.0f : -1.0f;
     else
         turn = (clearPos > clearNeg) ? 1.0f : -1.0f;
