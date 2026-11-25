@@ -17,11 +17,11 @@ struct MotionParams {
     float tau;
 };
 
-constexpr int N_FISH = 1000;
+constexpr int N_FISH = 4000;
 constexpr int N_SHARKS = 2;
 
 // Simulation units are meters and seconds; pixels appear only when drawing.
-constexpr float METERS_PER_PIXEL = 0.01f;
+constexpr float METERS_PER_PIXEL = 0.02f;
 
 constexpr float FISH_WIDTH = 0.1f;
 constexpr float FISH_LENGTH = 0.2f;
@@ -40,15 +40,15 @@ constexpr float FISH_SIGHT_RANGE = 1.0f;
 constexpr float FISH_FLEE_RANGE = 1.8f;
 constexpr float FISH_COMFORT_RANGE = 0.4f;
 
-constexpr float SHARK_LENGTH = 0.4f;
+constexpr float SHARK_LENGTH = 3.0f;
 constexpr Color SHARK_COLOR = RED;
 
-constexpr MotionParams SHARK_MOTION = {.v_min = 0.4f,
-                                       .v_cruise = 0.5f,
-                                       .v_max = 1.2f,
-                                       .r_max = 3.0f,
-                                       .T_v = 0.6f,
-                                       .T_r = 0.1f,
+constexpr MotionParams SHARK_MOTION = {.v_min = 0.5f,
+                                       .v_cruise = 1.0f,
+                                       .v_max = 2.5f,
+                                       .r_max = 0.8f,
+                                       .T_v = 1.0f,
+                                       .T_r = 0.4f,
                                        .K_phi = 4.0f,
                                        .tau = 0.3f};
 
@@ -59,10 +59,10 @@ constexpr BodyParams SHARK_BODY = {.length = SHARK_LENGTH,
                                    .strouhal = 0.3f,
                                    .length_passes = 1};
 
-constexpr float SHARK_SIGHT_RANGE = 2.0f;
-constexpr float SHARK_COMFORT_RANGE = 0.6f;
+constexpr float SHARK_SIGHT_RANGE = 6.0f;
+constexpr float SHARK_COMFORT_RANGE = 4.0f;
 constexpr float SHARK_HUNGER_RATE = 0.05f;
-constexpr float SHARK_EAT_DISTANCE = 0.15f;
+constexpr float SHARK_EAT_DISTANCE = 0.3f;
 constexpr float SHARK_EAT_DURATION = 5.0f;
 
 constexpr int WINDOW_WIDTH = 1500;
