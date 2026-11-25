@@ -41,7 +41,7 @@ constexpr float FISH_FLEE_RANGE = 1.8f;
 constexpr float FISH_COMFORT_RANGE = 0.4f;
 
 constexpr float SHARK_LENGTH = 3.0f;
-constexpr Color SHARK_COLOR = RED;
+constexpr Color SHARK_COLOR = {140, 128, 106, 255};
 
 constexpr MotionParams SHARK_MOTION = {.v_min = 0.5f,
                                        .v_cruise = 1.0f,
@@ -180,7 +180,7 @@ void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish);
 
 void drawBody(const Kinematics &kin, float length, float width, Color color);
 
-void drawSpine(const SharkBody &body, Color color);
+void drawShark(const SharkBody &body, Color color);
 
 float randomUniform(float lo, float hi) {
     constexpr int RESOLUTION = 1 << 20;
@@ -256,7 +256,7 @@ int main() {
                 drawBody(f.kin, FISH_LENGTH, FISH_WIDTH, FISH_COLOR);
             }
         for (const Shark &s : sharks_new)
-            drawSpine(s.body, SHARK_COLOR);
+            drawShark(s.body, SHARK_COLOR);
         EndDrawing();
 
         std::swap(fish_old, fish_new);
@@ -306,12 +306,17 @@ void drawBody(const Kinematics &kin, float length, float width, Color color) {
                  color);
 }
 
-void drawSpine(const SharkBody &body, Color color) {
-    std::vector<Vector2> points;
-    points.reserve(body.spine.size());
-    for (Vector2 p : body.spine)
-        points.push_back(toPixels(p));
-    DrawLineStrip(points.data(), (int)points.size(), color);
+// Right before left gives counter-clockwise triangles on screen, which raylib
+// needs to not cull them.
+void drawShark(const SharkBody &body, Color color) {
+    BodyShape shape = buildBodyShape(body.spine, SHARK_BODY.length);
+    std::vector<Vector2> strip;
+    strip.reserve(2 * shape.left.size());
+    for (size_t i = 0; i < shape.left.size(); ++i) {
+        strip.push_back(toPixels(shape.right[i]));
+        strip.push_back(toPixels(shape.left[i]));
+    }
+    DrawTriangleStrip(strip.data(), (int)strip.size(), color);
 }
 
 Kinematics integrate(const Kinematics &kin, Commands commands,

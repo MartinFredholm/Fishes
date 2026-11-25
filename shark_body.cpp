@@ -49,6 +49,11 @@ constexpr std::array<Knot, 6> WAVE_ENVELOPE = {
     {{0.0f, 0.2f}, {0.2f, 0.21f}, {0.4f, 0.23f},
      {0.6f, 0.4f}, {0.8f, 0.88f}, {1.0f, 1.0f}}};
 
+// docs/spec.md, shape values table: full body width as a fraction of L.
+constexpr std::array<Knot, 8> WIDTH_PROFILE = {
+    {{0.00f, 0.05f}, {0.10f, 0.09f}, {0.25f, 0.12f}, {0.40f, 0.11f},
+     {0.60f, 0.07f}, {0.75f, 0.035f}, {0.90f, 0.02f}, {1.00f, 0.005f}}};
+
 Vector2 pointAtArc(const std::vector<PathPoint> &path, int &search_from,
                    float arc) {
     while (search_from > 0 && path[search_from - 1].arc > arc)
@@ -86,11 +91,21 @@ void trimPath(std::vector<PathPoint> &path, float length) {
         p.arc -= base;
 }
 
-Vector2 spineNormal(const std::vector<Vector2> &spine, int i) {
-    int front = i > 0 ? i - 1 : i;
-    int back = i + 1 < (int)spine.size() ? i + 1 : i;
-    Vector2 tangent = Vector2Normalize(spine[front] - spine[back]);
-    return {-tangent.y, tangent.x};
+// Second-order one-sided differences at the ends: the first-order end chord
+// tilts by half a segment angle, which moves the wide nose outline by more
+// than 1 mm in tight turns.
+Vector2 spineLeftNormal(const std::vector<Vector2> &spine, int i) {
+    int last = (int)spine.size() - 1;
+    Vector2 noseward;
+    if (i == 0)
+        noseward = spine[0] * 3.0f - spine[1] * 4.0f + spine[2];
+    else if (i == last)
+        noseward =
+            spine[last - 1] * 4.0f - spine[last] * 3.0f - spine[last - 2];
+    else
+        noseward = spine[i - 1] - spine[i + 1];
+    Vector2 tangent = Vector2Normalize(noseward);
+    return {tangent.y, -tangent.x};
 }
 
 std::vector<Vector2> applyWave(const std::vector<Vector2> &spine, float phase,
@@ -101,7 +116,7 @@ std::vector<Vector2> applyWave(const std::vector<Vector2> &spine, float phase,
         float h = params.wave_amplitude * params.length *
                   interpolateSmooth(WAVE_ENVELOPE, s) *
                   std::sin(params.wave_number * s - phase);
-        waved[i] = spine[i] + spineNormal(spine, i) * h;
+        waved[i] = spine[i] + spineLeftNormal(spine, i) * h;
     }
     return waved;
 }
@@ -149,4 +164,19 @@ SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
     next.spine = applyWave(next.spine, next.phase, params);
     restoreSegmentLengths(next.spine, params);
     return next;
+}
+
+BodyShape buildBodyShape(const std::vector<Vector2> &spine, float length) {
+    BodyShape shape;
+    int n = (int)spine.size();
+    shape.left.resize(n);
+    shape.right.resize(n);
+    for (int i = 0; i < n; ++i) {
+        float s = (float)i / (n - 1);
+        float half_width = interpolateSmooth(WIDTH_PROFILE, s) * length / 2;
+        Vector2 left = spineLeftNormal(spine, i);
+        shape.left[i] = spine[i] + left * half_width;
+        shape.right[i] = spine[i] - left * half_width;
+    }
+    return shape;
 }

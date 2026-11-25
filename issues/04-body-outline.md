@@ -7,7 +7,7 @@ The body geometry seam: from the spine nodes, build the outline using the width 
 
 ## Interfaces
 - `BodyShape`: the outline as left and right point arrays, one point per spine node, plus a list of rigid-part polygons (empty in this issue). World meters.
-- `BodyShape buildBodyShape(const std::array<Vector2, N>& spine, float length)`, where `N` is the spine node count from 01.
+- `BodyShape buildBodyShape(const std::vector<Vector2>& spine, float length)`, with one point per spine node from 01.
 
 Issue 05 fills the rigid-part list without changing these signatures.
 

@@ -29,3 +29,13 @@ SharkBody seedSharkBody(const Kinematics &kin, const BodyParams &params);
 
 SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
                           const BodyParams &params, float dt);
+
+// World meters. left and right have one point per spine node; left is on the
+// screen-left of the swimming direction (y down).
+struct BodyShape {
+    std::vector<Vector2> left;
+    std::vector<Vector2> right;
+    std::vector<std::vector<Vector2>> rigid_parts;
+};
+
+BodyShape buildBodyShape(const std::vector<Vector2> &spine, float length);
