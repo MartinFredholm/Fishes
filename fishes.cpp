@@ -72,7 +72,7 @@ constexpr float W_WALLS = 5.0f;
 constexpr float T_ALIGN = 0.5f;
 constexpr float T_CRUISE = 0.5f;
 constexpr float W_COHERENCE = 2.0f;
-constexpr float W_SEPERATION = 0.9f;
+constexpr float W_SEPARATION = 0.9f;
 constexpr float W_FLEE = 3.0f;
 constexpr float W_CHASE = 3.0f;
 
@@ -377,7 +377,7 @@ Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,
                   self.target.distance;
     }
     Vector2 a_des = W_WALLS * a_walls + a_cruise / T_CRUISE +
-                    W_SEPERATION * a_sep +
+                    W_SEPARATION * a_sep +
                     W_CHASE * self.hunger.value * a_chase;
     return a_des;
 }
@@ -431,7 +431,7 @@ Vector2 desiredFishAcceleration(int i, const std::vector<Shark> &sharks,
 
     Vector2 a_des = W_WALLS * a_walls + a_align / T_ALIGN +
                     a_cruise / T_CRUISE + W_COHERENCE * a_coh +
-                    W_SEPERATION * a_sep + W_FLEE * Vector2Normalize(a_flee);
+                    W_SEPARATION * a_sep + W_FLEE * Vector2Normalize(a_flee);
     return a_des;
 }
 Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
