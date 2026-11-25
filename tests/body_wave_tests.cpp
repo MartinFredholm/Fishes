@@ -81,6 +81,7 @@ TEST_CASE("R8: wave offset at the blog's six amplitude points") {
     BodyParams params = waveBody();
     params.node_count = 6;
     params.length_passes = 0;
+    params.pivot = 1.0f / 3.0f;
     const float phi = 2.1f;
     const float u = 1.0f;
     const float dt = 1.0f / 60.0f;
@@ -103,7 +104,8 @@ TEST_CASE("R8: wave offset at the blog's six amplitude points") {
             double s = i / 5.0;
             double h = 0.1 * L * amp[i] * std::sin(5.3 * s - phase);
             CHECK(std::abs(side * frame.across(next.spine[i]) - h) < 1e-4);
-            CHECK(std::abs(-frame.along(next.spine[i]) - s * L) < 1e-4);
+            CHECK(std::abs(-frame.along(next.spine[i]) - (s - params.pivot) * L) <
+                  1e-4);
         }
     }
 }

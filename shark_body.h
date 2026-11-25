@@ -10,10 +10,12 @@ struct BodyParams {
     float wave_number;
     float strouhal;
     int length_passes;
+    float pivot;
 };
 
 struct SharkBody {
     float phase = 0.0f;
+    std::vector<Vector2> pivot_path;
     std::vector<Vector2> spine;
 };
 
