@@ -1,5 +1,5 @@
-# 06: Cephalofoil, pectoral and pelvic fins
-Depends on: 05
+# 08: Cephalofoil, pectoral and pelvic fins
+Depends on: 07
 Covers: R15, R17
 
 ## What to build

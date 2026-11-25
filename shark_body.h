@@ -12,15 +12,7 @@ struct BodyParams {
     int length_passes;
 };
 
-// arc is the distance travelled along the path, in meters; it increases toward
-// the nose.
-struct PathPoint {
-    Vector2 pos;
-    float arc;
-};
-
 struct SharkBody {
-    std::vector<PathPoint> path;
     float phase = 0.0f;
     std::vector<Vector2> spine;
 };

@@ -49,41 +49,33 @@ constexpr std::array<Knot, 6> WAVE_ENVELOPE = {
     {{0.0f, 0.2f}, {0.2f, 0.21f}, {0.4f, 0.23f},
      {0.6f, 0.4f}, {0.8f, 0.88f}, {1.0f, 1.0f}}};
 
-Vector2 pointAtArc(const std::vector<PathPoint> &path, int &search_from,
-                   float arc) {
-    while (search_from > 0 && path[search_from - 1].arc > arc)
-        --search_from;
-    if (search_from == 0)
-        return path.front().pos;
-    const PathPoint &a = path[search_from - 1];
-    const PathPoint &b = path[search_from];
-    float t = (arc - a.arc) / (b.arc - a.arc);
-    return Vector2Lerp(a.pos, b.pos, t);
+// kappa in 1/m, with the sign of r. Written with sin(x)/x and (1 - cos x)/x
+// so it stays exact and finite as kappa goes to 0.
+Vector2 pointOnTurnBend(Vector2 nose, Vector2 heading, float kappa,
+                        float behind) {
+    float bend = kappa * behind;
+    float along = behind, across = 0.0f;
+    if (bend != 0.0f) {
+        along = behind * std::sin(bend) / bend;
+        across = behind * 2.0f * std::sin(bend / 2.0f) * std::sin(bend / 2.0f) /
+                 bend;
+    }
+    Vector2 toward_positive_turn = {heading.y, -heading.x};
+    return nose - heading * along + toward_positive_turn * across;
 }
 
-std::vector<Vector2> placeSpine(const std::vector<PathPoint> &path,
-                                const BodyParams &params) {
+std::vector<Vector2> bendSpine(const Kinematics &kin,
+                               const BodyParams &params) {
+    float kappa = kin.v > 0.0f ? kin.r / kin.v : 0.0f;
+    // A denormal v overflows r/v; the arc's radius then goes to 0.
+    if (std::isinf(kappa))
+        return std::vector<Vector2>(params.node_count, kin.pos);
     std::vector<Vector2> spine(params.node_count);
-    float nose_arc = path.back().arc;
-    int search_from = (int)path.size() - 1;
     for (int i = 0; i < params.node_count; ++i) {
         float s = (float)i / (params.node_count - 1);
-        spine[i] = pointAtArc(path, search_from, nose_arc - s * params.length);
+        spine[i] = pointOnTurnBend(kin.pos, kin.heading, kappa, s * params.length);
     }
     return spine;
-}
-
-// Rebasing arc to the oldest point keeps float arc values small however far
-// the shark swims.
-void trimPath(std::vector<PathPoint> &path, float length) {
-    float tail_arc = path.back().arc - length;
-    auto first_kept = path.begin();
-    while (first_kept + 1 != path.end() && (first_kept + 1)->arc <= tail_arc)
-        ++first_kept;
-    path.erase(path.begin(), first_kept);
-    float base = path.front().arc;
-    for (PathPoint &p : path)
-        p.arc -= base;
 }
 
 Vector2 spineNormal(const std::vector<Vector2> &spine, int i) {
@@ -122,31 +114,33 @@ float advancePhase(float phase, float speed, const BodyParams &params,
     return std::remainder(phase + omega * dt, 2.0f * PI);
 }
 
+// With zero amplitude omega is undefined, and a length pass would pull the
+// spine's chords off the arc.
+bool waveOff(const BodyParams &params) { return params.wave_amplitude == 0.0f; }
+
+std::vector<Vector2> buildSpine(const Kinematics &kin, float phase,
+                                const BodyParams &params) {
+    std::vector<Vector2> spine = bendSpine(kin, params);
+    if (waveOff(params))
+        return spine;
+    spine = applyWave(spine, phase, params);
+    restoreSegmentLengths(spine, params);
+    return spine;
+}
+
 } // namespace
 
 SharkBody seedSharkBody(const Kinematics &kin, const BodyParams &params) {
     SharkBody body;
-    body.path = {{kin.pos - kin.heading * params.length, 0.0f},
-                 {kin.pos, params.length}};
-    body.spine = placeSpine(body.path, params);
+    body.spine = buildSpine(kin, body.phase, params);
     return body;
 }
 
 SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
                           const BodyParams &params, float dt) {
-    SharkBody next = body;
-    const PathPoint &nose = body.path.back();
-    float step = Vector2Distance(nose.pos, kin.pos);
-    if (step > 0.0f)
-        next.path.push_back({kin.pos, nose.arc + step});
-    trimPath(next.path, params.length);
-    next.spine = placeSpine(next.path, params);
-    // With zero amplitude omega is undefined, and a length pass would pull the
-    // spine's chords off a curved path.
-    if (params.wave_amplitude == 0.0f)
-        return next;
-    next.phase = advancePhase(body.phase, kin.v, params, dt);
-    next.spine = applyWave(next.spine, next.phase, params);
-    restoreSegmentLengths(next.spine, params);
+    SharkBody next;
+    next.phase = waveOff(params) ? body.phase
+                                 : advancePhase(body.phase, kin.v, params, dt);
+    next.spine = buildSpine(kin, next.phase, params);
     return next;
 }
