@@ -70,8 +70,7 @@ TEST_CASE("review 03 / R8: amp(s) passes through the six points and has no "
 }
 
 TEST_CASE("review 03 / design: the drawn nose sways about kin.pos by "
-          "A*L*amp(0) = 0.06 m" *
-          doctest::skip() * doctest::description("moves to issue 06")) {
+          "A*L*amp(0) = 0.06 m") {
     const BodyParams params = reviewParams(24, 1);
     const float dt = 1.0f / 60.0f;
     Kinematics kin = kinHeading({5.0f, 8.0f}, 0.5f, 1.0f);

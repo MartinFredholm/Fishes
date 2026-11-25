@@ -10,12 +10,18 @@ struct BodyParams {
     float wave_number;
     float strouhal;
     int length_passes;
-    float pivot;
+};
+
+// arc is the distance travelled along the path, in meters; it increases toward
+// the nose.
+struct PathPoint {
+    Vector2 pos;
+    float arc;
 };
 
 struct SharkBody {
+    std::vector<PathPoint> path;
     float phase = 0.0f;
-    std::vector<Vector2> pivot_path;
     std::vector<Vector2> spine;
 };
 
