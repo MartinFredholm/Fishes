@@ -19,6 +19,22 @@ if(APPLE AND NOT OpenMP_ROOT)
 endif()
 find_package(OpenMP REQUIRED)
 
+add_library(shark_body STATIC shark_body.cpp)
+target_include_directories(shark_body PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# Headers only (Vector2, inline raymath): not linking raylib keeps the tests
+# free of the window library and fails the link if the body module calls it.
+target_include_directories(shark_body SYSTEM PUBLIC
+    $<TARGET_PROPERTY:raylib,INTERFACE_INCLUDE_DIRECTORIES>)
+target_compile_options(shark_body PRIVATE -Wall -Wextra)
+
 add_executable(fishes fishes.cpp)
 target_compile_options(fishes PRIVATE -Wall -Wextra -ffast-math -mcpu=native)
-target_link_libraries(fishes raylib OpenMP::OpenMP_CXX)
+target_link_libraries(fishes shark_body raylib OpenMP::OpenMP_CXX)
+
+enable_testing()
+add_executable(shark_body_tests tests/shark_body_tests.cpp tests/review_01_tests.cpp
+    tests/review_01_round2_tests.cpp)
+target_include_directories(shark_body_tests PRIVATE third_party)
+target_compile_options(shark_body_tests PRIVATE -Wall -Wextra)
+target_link_libraries(shark_body_tests shark_body)
+add_test(NAME shark_body_tests COMMAND shark_body_tests)

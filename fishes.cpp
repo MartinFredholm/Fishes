@@ -1,5 +1,7 @@
+#include "kinematics.h"
 #include "raylib.h"
 #include "raymath.h"
+#include "shark_body.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -38,7 +40,6 @@ constexpr float FISH_SIGHT_RANGE = 1.0f;
 constexpr float FISH_FLEE_RANGE = 1.8f;
 constexpr float FISH_COMFORT_RANGE = 0.4f;
 
-constexpr float SHARK_WIDTH = 0.2f;
 constexpr float SHARK_LENGTH = 0.4f;
 constexpr Color SHARK_COLOR = RED;
 
@@ -50,6 +51,13 @@ constexpr MotionParams SHARK_MOTION = {.v_min = 0.4f,
                                        .T_r = 0.1f,
                                        .K_phi = 4.0f,
                                        .tau = 0.3f};
+
+constexpr BodyParams SHARK_BODY = {.length = SHARK_LENGTH,
+                                   .node_count = 24,
+                                   .wave_amplitude = 0.1f,
+                                   .wave_number = 5.3f,
+                                   .strouhal = 0.3f,
+                                   .length_passes = 1};
 
 constexpr float SHARK_SIGHT_RANGE = 2.0f;
 constexpr float SHARK_COMFORT_RANGE = 0.6f;
@@ -76,14 +84,6 @@ constexpr float W_SEPARATION = 0.9f;
 constexpr float W_FLEE = 3.0f;
 constexpr float W_CHASE = 3.0f;
 
-struct Kinematics {
-    Vector2 pos{};
-    float phi = 0.0f;
-    float v = 0.0f;
-    float r = 0.0f;
-    Vector2 heading = {std::cos(phi), -std::sin(phi)};
-};
-
 struct Fish {
     Kinematics kin;
     bool dead;
@@ -104,6 +104,7 @@ struct Shark {
     Kinematics kin;
     Target target{-1, {0, 0}, 0};
     Hunger hunger;
+    SharkBody body;
 };
 
 struct Commands {
@@ -179,6 +180,8 @@ void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish);
 
 void drawBody(const Kinematics &kin, float length, float width, Color color);
 
+void drawSpine(const SharkBody &body, Color color);
+
 float randomUniform(float lo, float hi) {
     constexpr int RESOLUTION = 1 << 20;
     return lo + (hi - lo) * (float)GetRandomValue(0, RESOLUTION) / RESOLUTION;
@@ -208,6 +211,7 @@ int main() {
         s.kin = randomStart(SHARK_MOTION.v_cruise);
         s.hunger.value = 0.0f;
         s.hunger.time = 0.0f;
+        s.body = seedSharkBody(s.kin, SHARK_BODY);
     }
 
     Grid grid;
@@ -236,6 +240,8 @@ int main() {
             cmd = safetyFilter(cmd, sharks_old[i].kin, SHARK_MOTION);
             sharks_new[i].kin =
                 integrate(sharks_old[i].kin, cmd, SHARK_MOTION, dt);
+            sharks_new[i].body = updateSharkBody(
+                sharks_old[i].body, sharks_new[i].kin, SHARK_BODY, dt);
             sharks_new[i].hunger = sharkUpdateHunger(sharks_old[i], dt);
             sharks_new[i].target =
                 sharkGetTarget(i, sharks_old, fish_old, grid);
@@ -250,7 +256,7 @@ int main() {
                 drawBody(f.kin, FISH_LENGTH, FISH_WIDTH, FISH_COLOR);
             }
         for (const Shark &s : sharks_new)
-            drawBody(s.kin, SHARK_LENGTH, SHARK_WIDTH, SHARK_COLOR);
+            drawSpine(s.body, SHARK_COLOR);
         EndDrawing();
 
         std::swap(fish_old, fish_new);
@@ -298,6 +304,14 @@ void drawBody(const Kinematics &kin, float length, float width, Color color) {
 
     DrawTriangle(toPixels(v_back_1), toPixels(v_back_2), toPixels(v_front),
                  color);
+}
+
+void drawSpine(const SharkBody &body, Color color) {
+    std::vector<Vector2> points;
+    points.reserve(body.spine.size());
+    for (Vector2 p : body.spine)
+        points.push_back(toPixels(p));
+    DrawLineStrip(points.data(), (int)points.size(), color);
 }
 
 Kinematics integrate(const Kinematics &kin, Commands commands,
