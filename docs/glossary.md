@@ -39,7 +39,11 @@ _Not to be confused with_: shark separation, the soft steering term from `SHARK_
 
 **Takeover**: Shark avoidance takes over when the commanded commands' predicted shark clearance is below `SHARK_AVOID_MARGIN`. It then returns full left, straight or full right at `v_min`, whichever scores best.
 
+**Front stiffness**: The front of the drawn spine, s = 0 to 0.25, bends less in a turn than the nose path it follows. Fully rigid at the nose, rising smoothly to fully flexible (normal path-following bend) at s = 0.25. The spine from s = 0.25 to the tail stays on the nose path; the front is built forward from s = 0.25, so in a turn the drawn nose sits a few cm outside `kin.pos`. It acts only on the drawn spine. The body line stays on the nose path.
+
 **Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3).
+
+**Turn asymmetry**: In a curve, the body wave's half-stroke on the outside of the curve is scaled by (1 + a) and the one on the inside by (1 − a). a grows linearly with the nose path's local curvature at each node, up to 0.5 at 0.8 /m, and is held there for tighter curves. It moves the tail's mean position outward by 2a/π of the local amplitude. Curvature in 1/m; the outside is the side away from the curve's centre.
 
 **Amplitude envelope (amp(s))**: The smooth curve that scales the body wave along the body, through 0.2, 0.21, 0.23, 0.4, 0.88 and 1.0 at s = 0, 0.2, …, 1.
 

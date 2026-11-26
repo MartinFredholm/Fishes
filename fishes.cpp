@@ -17,7 +17,7 @@ constexpr Color FISH_COLOR = BLUE;
 
 constexpr MotionParams FISH_MOTION = {.v_min = 0.15f,
                                       .v_cruise = 0.6f,
-                                      .v_max = 1.0f,
+                                      .v_max = 1.5f,
                                       .r_max = 6.0f,
                                       .T_v = 0.2f,
                                       .T_r = 0.05f,
@@ -25,9 +25,9 @@ constexpr MotionParams FISH_MOTION = {.v_min = 0.15f,
                                       .tau = 0.3f,
                                       .wall_clearance = 0.0f};
 
-constexpr float FISH_SIGHT_RANGE = 1.0f;
-constexpr float FISH_FLEE_RANGE = 1.8f;
-constexpr float FISH_COMFORT_RANGE = 0.4f;
+constexpr float FISH_SIGHT_RANGE = 1.4f;
+constexpr float FISH_FLEE_RANGE = 2.5f;
+constexpr float FISH_COMFORT_RANGE = 0.5f;
 
 constexpr float SHARK_LENGTH = 3.0f;
 constexpr Color SHARK_COLOR = {140, 128, 106, 255};
