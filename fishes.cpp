@@ -1,4 +1,5 @@
 #include "kinematics.h"
+#include "motion.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "shark_body.h"
@@ -6,22 +7,8 @@
 #include <cmath>
 #include <vector>
 
-struct MotionParams {
-    float v_min;
-    float v_cruise;
-    float v_max;
-    float r_max;
-    float T_v;
-    float T_r;
-    float K_phi;
-    float tau;
-    float wall_clearance;
-};
-
 constexpr int N_FISH = 4000;
 constexpr int N_SHARKS = 2;
-
-constexpr float METERS_PER_PIXEL = 0.02f;
 
 constexpr float FISH_WIDTH = 0.1f;
 constexpr float FISH_LENGTH = 0.2f;
@@ -70,22 +57,18 @@ constexpr float SHARK_HUNGER_RATE = 0.05f;
 constexpr float SHARK_EAT_DISTANCE = 0.3f;
 constexpr float SHARK_EAT_DURATION = 5.0f;
 
-constexpr int WINDOW_WIDTH = 1500;
-constexpr int WINDOW_HEIGHT = 800;
-constexpr float WORLD_WIDTH = WINDOW_WIDTH * METERS_PER_PIXEL;
-constexpr float WORLD_HEIGHT = WINDOW_HEIGHT * METERS_PER_PIXEL;
 constexpr float SPAWN_MARGIN = 1.0f;
 constexpr float MAX_DT = 1.0f / 30.0f;
 
 constexpr float WALL_BUFFER_DIST = 1.0f;
 constexpr float SAFETY_MARGIN = 0.2f;
-constexpr float CLEARANCE_TIE = 0.01f;
 // W_COHERENCE is in 1/s^2; the other W_ weights are in m/s^2.
 constexpr float W_WALLS = 5.0f;
 constexpr float T_ALIGN = 0.5f;
 constexpr float T_CRUISE = 0.5f;
 constexpr float W_COHERENCE = 2.0f;
-constexpr float W_SEPARATION = 0.9f;
+constexpr float W_FISH_SEPARATION = 0.9f;
+constexpr float W_SHARK_SEPARATION = 0.9f;
 constexpr float W_FLEE = 3.0f;
 constexpr float W_CHASE = 3.0f;
 
@@ -110,11 +93,6 @@ struct Shark {
     Target target{-1, {0, 0}, 0};
     Hunger hunger;
     SharkBody body;
-};
-
-struct Commands {
-    float v_cmd;
-    float r_cmd;
 };
 
 constexpr float GRID_CELL_SIZE = 1.0f;
@@ -177,8 +155,6 @@ Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
 Commands safetyFilter(Commands cmd, const Kinematics &kin,
                       const MotionParams &params);
 
-Kinematics integrate(const Kinematics &kin, Commands commands,
-                     const MotionParams &params, float dt);
 Hunger sharkUpdateHunger(const Shark &shark, float dt);
 
 void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish);
@@ -331,22 +307,6 @@ void drawShark(const SharkBody &body, Color color) {
     }
 }
 
-Kinematics integrate(const Kinematics &kin, Commands commands,
-                     const MotionParams &params, float dt) {
-    float v_cmd = commands.v_cmd;
-    float r_cmd = commands.r_cmd;
-    float v_dot = (v_cmd - kin.v) / params.T_v;
-    float r_dot = (r_cmd - kin.r) / params.T_r;
-
-    Vector2 pos = kin.pos + kin.v * kin.heading * dt;
-
-    float phi = kin.phi + kin.r * dt;
-    float v = kin.v + v_dot * dt;
-    float r = kin.r + r_dot * dt;
-    Vector2 heading = {std::cos(phi), -std::sin(phi)};
-    return {pos, phi, v, r, heading};
-}
-
 inline float wallRamp(float d) {
     return Clamp(1.0f - d / WALL_BUFFER_DIST, 0.0f, 1.0f);
 }
@@ -411,7 +371,7 @@ Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,
                   self.target.distance;
     }
     Vector2 a_des = W_WALLS * a_walls + a_cruise / T_CRUISE +
-                    W_SEPARATION * a_sep +
+                    W_SHARK_SEPARATION * a_sep +
                     W_CHASE * self.hunger.value * a_chase;
     return a_des;
 }
@@ -466,7 +426,7 @@ Vector2 desiredFishAcceleration(int i, const std::vector<Shark> &sharks,
 
     Vector2 a_des = W_WALLS * a_walls + a_align / T_ALIGN +
                     a_cruise / T_CRUISE + W_COHERENCE * a_coh +
-                    W_SEPARATION * a_sep + W_FLEE * Vector2Normalize(a_flee);
+                    W_FISH_SEPARATION * a_sep + W_FLEE * Vector2Normalize(a_flee);
     return a_des;
 }
 Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
