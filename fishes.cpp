@@ -50,7 +50,8 @@ constexpr BodyParams SHARK_BODY = {.length = SHARK_LENGTH,
                                    .wave_amplitude = 0.1f,
                                    .wave_number = 5.3f,
                                    .strouhal = 0.3f,
-                                   .length_passes = 1};
+                                   .length_passes = 1,
+                                   .front_stiff_s = 0.35f};
 
 constexpr float SHARK_SIGHT_RANGE = 6.0f;
 constexpr float SHARK_COMFORT_RANGE = 6.0f;

@@ -39,7 +39,7 @@ _Not to be confused with_: shark separation, the soft steering term from `SHARK_
 
 **Takeover**: Shark avoidance takes over when the commanded commands' predicted shark clearance is below `SHARK_AVOID_MARGIN`. It then returns full left, straight or full right at `v_min`, whichever scores best.
 
-**Front stiffness**: The front of the drawn spine, s = 0 to 0.25, bends less in a turn than the nose path it follows. Fully rigid at the nose, rising smoothly to fully flexible (normal path-following bend) at s = 0.25. The spine from s = 0.25 to the tail stays on the nose path; the front is built forward from s = 0.25, so in a turn the drawn nose sits a few cm outside `kin.pos`. It acts only on the drawn spine. The body line stays on the nose path.
+**Front stiffness**: The front of the drawn spine, s = 0 to 0.35, bends less in a turn than the nose path it follows. Fully rigid at the nose, rising smoothly to fully flexible (normal path-following bend) at s = 0.35. The spine from s = 0.35 to the tail stays on the nose path; the front is built forward from s = 0.35, so in a turn the drawn nose sits outside `kin.pos` (13 cm at cruise, 25 cm in the tightest turn). It acts only on the drawn spine. The body line stays on the nose path.
 
 **Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3).
 

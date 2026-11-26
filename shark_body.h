@@ -12,6 +12,7 @@ struct BodyParams {
     float wave_number;
     float strouhal;
     int length_passes;
+    float front_stiff_s;
 };
 
 // arc increases toward the nose.

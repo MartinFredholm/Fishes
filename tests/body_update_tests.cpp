@@ -11,6 +11,8 @@ constexpr float TOL_M = 1e-3f;
 
 float nodeS(int i) { return (float)i / (NODES - 1); }
 
+constexpr int FIRST_FLEXIBLE_NODE = 9;
+
 // y down: pos = c + R·(sin phi, cos phi) moves along heading
 // (cos phi, −sin phi).
 struct Circle {
@@ -42,9 +44,9 @@ CircleRun swimCircle(const Circle &circle, float phi0, float v, float dt,
     return {body, phi};
 }
 
-void checkSpineOnCircle(const Circle &circle, const CircleRun &run) {
+void checkFlexibleSpineOnCircle(const Circle &circle, const CircleRun &run) {
     REQUIRE(run.body.spine.size() == NODES);
-    for (int i = 0; i < NODES; ++i) {
+    for (int i = FIRST_FLEXIBLE_NODE; i < NODES; ++i) {
         CAPTURE(i);
         Vector2 node = run.body.spine[i];
         CHECK(std::abs(dist(node, circle.c) - circle.R) < TOL_M);
@@ -80,9 +82,9 @@ OnPath projectOnPath(const std::vector<PathPoint> &path, Vector2 p) {
     return best;
 }
 
-void checkSpineOnRecordedPath(const SharkBody &body) {
+void checkFlexibleSpineOnRecordedPath(const SharkBody &body) {
     REQUIRE(body.spine.size() == NODES);
-    for (int i = 0; i < NODES; ++i) {
+    for (int i = FIRST_FLEXIBLE_NODE; i < NODES; ++i) {
         CAPTURE(i);
         OnPath on = projectOnPath(body.path, body.spine[i]);
         CHECK(on.distance < TOL_M);
@@ -128,15 +130,57 @@ struct ReferencePath {
     }
 };
 
-void checkOnReference(const SharkBody &body, const ReferencePath &ref) {
+void checkFlexibleSpineOnReference(const SharkBody &body,
+                                   const ReferencePath &ref) {
     REQUIRE(body.spine.size() == NODES);
     double nose_arc = ref.arc.back();
-    for (int i = 0; i < NODES; ++i) {
+    for (int i = FIRST_FLEXIBLE_NODE; i < NODES; ++i) {
         CAPTURE(i);
         Projection p = ref.project(body.spine[i]);
         CHECK(p.distance < TOL_M);
         CHECK(std::abs((float)(nose_arc - p.arc) - nodeS(i) * L) < TOL_M);
     }
+}
+
+struct SteadyTurn {
+    float radius;
+    float v;
+};
+
+constexpr SteadyTurn CRUISE_TURN = {1.25f, 1.0f};
+constexpr SteadyTurn TIGHTEST_TURN = {TIGHTEST_TURN_RADIUS, 0.5f};
+
+struct TurnRun {
+    SharkBody body;
+    Kinematics kin;
+};
+
+// direction = +1 turns screen-left (phi increases).
+TurnRun swimSteadyTurn(SteadyTurn turn, float direction) {
+    const BodyParams params = bodyParams(0.0f);
+    const float dt = 1.0f / 60.0f;
+    const float r = direction * turn.v / turn.radius;
+    Kinematics kin = kinAt({15.0f, 8.0f}, 0.4f, turn.v, r);
+    SharkBody body = seedSharkBody(kin, params);
+    for (float swum = 0.0f; swum < 2.0f * L; swum += turn.v * dt) {
+        kin = turnStep(kin, r, dt);
+        body = updateSharkBody(body, kin, params, dt);
+    }
+    return {body, kin};
+}
+
+// Signed like phi: positive turns screen-left.
+float turnAngle(Vector2 from, Vector2 to) {
+    return std::atan2(-(from.x * to.y - from.y * to.x),
+                      from.x * to.x + from.y * to.y);
+}
+
+Vector2 noseward(const std::vector<Vector2> &spine, int i) {
+    return {spine[i - 1].x - spine[i].x, spine[i - 1].y - spine[i].y};
+}
+
+float bendAtNode(const std::vector<Vector2> &spine, int i) {
+    return turnAngle(noseward(spine, i + 1), noseward(spine, i));
 }
 
 } // namespace
@@ -180,13 +224,13 @@ TEST_CASE("first update after spawn keeps the spine straight along the "
     }
 }
 
-TEST_CASE("spine node 0 is the nose every frame") {
+TEST_CASE("swimming straight, spine node 0 is the nose every frame") {
     const BodyParams params = bodyParams(0.0f);
-    Kinematics kin = kinAt({5.0f, 5.0f}, 0.0f, 1.0f);
+    Kinematics kin = kinAt({5.0f, 5.0f}, 0.7f, 1.0f);
     SharkBody body = seedSharkBody(kin, params);
     CHECK(dist(body.spine[0], kin.pos) < 1e-5f);
     for (int k = 0; k < 200; ++k) {
-        kin = turnStep(kin, 0.8f, 1.0f / 60.0f);
+        kin = straightStep(kin, 1.0f / 60.0f);
         body = updateSharkBody(body, kin, params, 1.0f / 60.0f);
         CHECK(dist(body.spine[0], kin.pos) < 1e-5f);
     }
@@ -213,7 +257,7 @@ TEST_CASE("nose path keeps at least L behind the nose and trims older "
 }
 
 TEST_CASE("tightest turn keeps at least L of nose path, trims, and the spine "
-          "lies on the path") {
+          "from s = 0.35 lies on the path") {
     const BodyParams params = bodyParams(0.0f);
     Kinematics kin = kinAt({10.0f, 8.0f}, 0.5f, 0.5f);
     SharkBody body = seedSharkBody(kin, params);
@@ -226,7 +270,7 @@ TEST_CASE("tightest turn keeps at least L of nose path, trims, and the spine "
         CHECK(p.back().arc - p.front().arc >= L);
         CHECK(p.back().arc - p[1].arc < L);
     }
-    checkSpineOnRecordedPath(body);
+    checkFlexibleSpineOnRecordedPath(body);
 }
 
 TEST_CASE("zero amplitude, straight path: nodes on the path at s·L") {
@@ -255,14 +299,15 @@ TEST_CASE("zero amplitude, straight path: nodes on the path at s·L") {
     }
 }
 
-TEST_CASE("zero amplitude, circular path: nodes on the circle at s·L") {
+TEST_CASE("zero amplitude, circular path: nodes from s = 0.35 on the circle "
+          "at s·L") {
     const Circle circle{{8.0f, 6.0f}, 1.0f};
     CircleRun run = swimCircle(circle, 0.4f, 1.0f, 1.0f / 60.0f, 2.0f * L);
-    checkSpineOnCircle(circle, run);
+    checkFlexibleSpineOnCircle(circle, run);
 }
 
-TEST_CASE("varying speed and curvature with uneven dt: nodes on the traced "
-          "path at s·L") {
+TEST_CASE("varying speed and curvature with uneven dt: nodes from s = 0.35 on "
+          "the traced path at s·L") {
     const BodyParams params = bodyParams(0.0f);
     const std::vector<float> dts = {1.0f / 30.0f, 0.003f, 1.0f / 90.0f, 0.0f,
                                     0.027f,       0.0001f, 1.0f / 45.0f};
@@ -291,13 +336,14 @@ TEST_CASE("varying speed and curvature with uneven dt: nodes on the traced "
 
         if (k % 250 == 0) {
             CAPTURE(k);
-            checkOnReference(body, ref);
+            checkFlexibleSpineOnReference(body, ref);
         }
     }
-    checkOnReference(body, ref);
+    checkFlexibleSpineOnReference(body, ref);
 }
 
-TEST_CASE("one-hour swim keeps the nose path bounded and the spine on it") {
+TEST_CASE("one-hour swim keeps the nose path bounded and the spine from "
+          "s = 0.35 on it") {
     const BodyParams params = bodyParams(0.0f);
     Kinematics kin = kinAt({5.0f, 5.0f}, 0.0f, 1.0f);
     SharkBody body = seedSharkBody(kin, params);
@@ -308,7 +354,50 @@ TEST_CASE("one-hour swim keeps the nose path bounded and the spine on it") {
     }
     CHECK(body.path.size() < 400);
     CHECK(body.path.back().arc < 2.0f * L);
-    checkSpineOnRecordedPath(body);
+    checkFlexibleSpineOnRecordedPath(body);
+}
+
+TEST_CASE("steady turn, zero amplitude: the front bends less than the path, "
+          "rising toward s = 0.35") {
+    for (SteadyTurn turn : {CRUISE_TURN, TIGHTEST_TURN}) {
+        for (float direction : {1.0f, -1.0f}) {
+            CAPTURE(turn.radius);
+            CAPTURE(direction);
+            const float path_bend_rad = L / (NODES - 1) / turn.radius;
+            const std::vector<Vector2> spine =
+                swimSteadyTurn(turn, direction).body.spine;
+            REQUIRE(spine.size() == NODES);
+            float previous_bend_rad = 0.0f;
+            for (int i = 1; i < FIRST_FLEXIBLE_NODE; ++i) {
+                CAPTURE(i);
+                float bend_rad = direction * bendAtNode(spine, i);
+                CHECK(bend_rad < path_bend_rad);
+                CHECK(bend_rad >= previous_bend_rad);
+                previous_bend_rad = bend_rad;
+            }
+            CHECK(previous_bend_rad >= 0.9f * path_bend_rad);
+        }
+    }
+}
+
+TEST_CASE("steady turn, zero amplitude: the head lags the heading toward the "
+          "outside by kappa L 0.35 / 2") {
+    struct Expected {
+        SteadyTurn turn;
+        float lag_rad;
+    };
+    for (Expected e : {Expected{CRUISE_TURN, 0.42f},
+                       Expected{TIGHTEST_TURN, 0.84f}}) {
+        for (float direction : {1.0f, -1.0f}) {
+            CAPTURE(e.turn.radius);
+            CAPTURE(direction);
+            TurnRun run = swimSteadyTurn(e.turn, direction);
+            REQUIRE(run.body.spine.size() == NODES);
+            float lag_rad = -direction * turnAngle(run.kin.heading,
+                                                   noseward(run.body.spine, 1));
+            CHECK(std::abs(lag_rad / e.lag_rad - 1.0f) <= 0.15f);
+        }
+    }
 }
 
 TEST_CASE("very small steps keep the spine finite") {
@@ -322,6 +411,60 @@ TEST_CASE("very small steps keep the spine finite") {
     for (Vector2 p : body.spine) {
         CHECK(std::isfinite(p.x));
         CHECK(std::isfinite(p.y));
+    }
+}
+
+TEST_CASE("review 01: straight with uneven dt at an odd heading, node 0 is "
+          "the nose every frame and all nodes lie on the line at s·L") {
+    const BodyParams params = bodyParams(0.0f);
+    const std::vector<float> uneven = {1.0f / 30.0f, 0.004f, 0.0f, 0.021f,
+                                       0.0001f, 1.0f / 33.0f, 0.012f};
+    Kinematics kin = kinAt({4.0f, 6.0f}, -2.3f, 1.0f);
+    SharkBody body = seedSharkBody(kin, params);
+    const Vector2 back = {-kin.heading.x, -kin.heading.y};
+    for (int step = 0; step < 900; ++step) {
+        CAPTURE(step);
+        float dt = uneven[step % uneven.size()];
+        kin = straightStep(kin, dt);
+        body = updateSharkBody(body, kin, params, dt);
+        REQUIRE(body.spine.size() == NODES);
+        CHECK(dist(body.spine[0], kin.pos) < 1e-5f);
+        for (int i = 0; i < NODES; ++i) {
+            CAPTURE(i);
+            Vector2 expected = {kin.pos.x + back.x * nodeS(i) * L,
+                                kin.pos.y + back.y * nodeS(i) * L};
+            CHECK(dist(body.spine[i], expected) < TOL_M);
+        }
+    }
+}
+
+TEST_CASE("review 01: steady turn, zero amplitude: front segments keep L/23 "
+          "within 0.2 % and the drawn nose sits outside kin.pos by 13 and 25 cm") {
+    const float rest = L / (NODES - 1);
+    struct Expected {
+        SteadyTurn turn;
+        float nose_offset_m;
+    };
+    for (Expected e : {Expected{CRUISE_TURN, 0.13f},
+                       Expected{TIGHTEST_TURN, 0.25f}}) {
+        for (float direction : {1.0f, -1.0f}) {
+            CAPTURE(e.turn.radius);
+            CAPTURE(direction);
+            TurnRun run = swimSteadyTurn(e.turn, direction);
+            const std::vector<Vector2> &spine = run.body.spine;
+            for (int i = 0; i < FIRST_FLEXIBLE_NODE; ++i) {
+                CAPTURE(i);
+                CHECK(std::abs(dist(spine[i], spine[i + 1]) / rest - 1.0f) <=
+                      0.002f);
+            }
+            Vector2 left = {run.kin.heading.y, -run.kin.heading.x};
+            Vector2 d = {spine[0].x - run.kin.pos.x,
+                         spine[0].y - run.kin.pos.y};
+            float outward_m = -direction * (d.x * left.x + d.y * left.y);
+            CHECK(outward_m > 0.0f);
+            CHECK(dist(spine[0], run.kin.pos) ==
+                  doctest::Approx(e.nose_offset_m).epsilon(0.1));
+        }
     }
 }
 

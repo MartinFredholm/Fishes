@@ -104,6 +104,75 @@ std::vector<Vector2> placeAtUniformS(const std::vector<PathPoint> &path,
     return points;
 }
 
+Vector2 pointAtAnyArc(const std::vector<PathPoint> &path, float arc) {
+    auto after = std::upper_bound(
+        path.begin(), path.end(), arc,
+        [](float a, const PathPoint &p) { return a < p.arc; });
+    if (after == path.begin())
+        return path.front().pos;
+    if (after == path.end())
+        return path.back().pos;
+    const PathPoint &a = *(after - 1);
+    const PathPoint &b = *after;
+    return Vector2Lerp(a.pos, b.pos, (arc - a.arc) / (b.arc - a.arc));
+}
+
+// Phi-signed angle (positive turns screen-left, y down) from a to b.
+float turnAngle(Vector2 a, Vector2 b) {
+    return std::atan2(-(a.x * b.y - a.y * b.x), Vector2DotProduct(a, b));
+}
+
+float segmentLength(const BodyParams &params) {
+    return params.length / (params.node_count - 1);
+}
+
+// In 1/m, signed like kin.r. The turn between two chords of one segment each,
+// centred on the node's arc, is exact on a circle and averages out the uneven
+// spacing of the path points.
+std::vector<float> pathCurvatureAtNodes(const std::vector<PathPoint> &path,
+                                        const BodyParams &params) {
+    float window = segmentLength(params);
+    float nose_arc = path.back().arc;
+    float lowest = path.front().arc + window;
+    float highest = nose_arc - window;
+    std::vector<float> curvature(params.node_count);
+    for (int i = 0; i < params.node_count; ++i) {
+        float s = (float)i / (params.node_count - 1);
+        float arc = std::clamp(nose_arc - s * params.length, lowest, highest);
+        Vector2 behind = pointAtAnyArc(path, arc - window);
+        Vector2 at = pointAtAnyArc(path, arc);
+        Vector2 ahead = pointAtAnyArc(path, arc + window);
+        curvature[i] = turnAngle(at - behind, ahead - at) / window;
+    }
+    return curvature;
+}
+
+float smoothstep(float t) {
+    t = std::clamp(t, 0.0f, 1.0f);
+    return t * t * (3.0f - 2.0f * t);
+}
+
+// Rotates the nose path's own chords rather than chaining segments from the
+// anchor's direction: a chain multiplies the rounding of that one direction by
+// the front's length, and swimming straight puts node 0 more than 1e-5 m off
+// kin.pos.
+void stiffenFront(std::vector<Vector2> &spine,
+                  const std::vector<float> &curvature,
+                  const BodyParams &params) {
+    int last = params.node_count - 1;
+    int anchor = (int)std::ceil(params.front_stiff_s * last);
+    const std::vector<Vector2> on_path = spine;
+    float rest = segmentLength(params);
+    float withheld_bend = 0.0f;
+    for (int i = anchor; i > 0; --i) {
+        float s = (float)i / last;
+        withheld_bend += curvature[i] * rest *
+                         (1.0f - smoothstep(s / params.front_stiff_s));
+        spine[i - 1] =
+            spine[i] + Vector2Rotate(on_path[i - 1] - on_path[i], withheld_bend);
+    }
+}
+
 // Rebasing arc to the oldest point keeps float arc values small however far
 // the shark swims.
 void trimPath(std::vector<PathPoint> &path, float length) {
@@ -250,6 +319,7 @@ SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
         next.path.push_back({kin.pos, nose.arc + step});
     trimPath(next.path, params.length);
     next.spine = placeAtUniformS(next.path, params.node_count, params.length);
+    stiffenFront(next.spine, pathCurvatureAtNodes(next.path, params), params);
     next.body_line =
         placeAtUniformS(next.path, BODY_LINE_POINTS, params.length);
     // With zero amplitude omega is undefined, and a length pass would pull the

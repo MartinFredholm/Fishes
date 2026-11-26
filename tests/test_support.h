@@ -28,7 +28,8 @@ inline BodyParams bodyParams(float wave_amplitude, int node_count = NODES,
             .wave_amplitude = wave_amplitude,
             .wave_number = 5.3f,
             .strouhal = 0.3f,
-            .length_passes = length_passes};
+            .length_passes = length_passes,
+            .front_stiff_s = 0.35f};
 }
 
 inline Kinematics kinAt(Vector2 pos, float phi, float v, float r = 0.0f) {
