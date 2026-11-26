@@ -92,16 +92,16 @@ Vector2 pointAtArc(const std::vector<PathPoint> &path, int &search_from,
     return Vector2Lerp(a.pos, b.pos, t);
 }
 
-std::vector<Vector2> placeSpine(const std::vector<PathPoint> &path,
-                                const BodyParams &params) {
-    std::vector<Vector2> spine(params.node_count);
+std::vector<Vector2> placeAtUniformS(const std::vector<PathPoint> &path,
+                                     int count, float length) {
+    std::vector<Vector2> points(count);
     float nose_arc = path.back().arc;
     int search_from = (int)path.size() - 1;
-    for (int i = 0; i < params.node_count; ++i) {
-        float s = (float)i / (params.node_count - 1);
-        spine[i] = pointAtArc(path, search_from, nose_arc - s * params.length);
+    for (int i = 0; i < count; ++i) {
+        float s = (float)i / (count - 1);
+        points[i] = pointAtArc(path, search_from, nose_arc - s * length);
     }
-    return spine;
+    return points;
 }
 
 // Rebasing arc to the oldest point keeps float arc values small however far
@@ -235,7 +235,9 @@ SharkBody seedSharkBody(const Kinematics &kin, const BodyParams &params) {
     SharkBody body;
     body.path = {{kin.pos - kin.heading * params.length, 0.0f},
                  {kin.pos, params.length}};
-    body.spine = placeSpine(body.path, params);
+    body.spine = placeAtUniformS(body.path, params.node_count, params.length);
+    body.body_line =
+        placeAtUniformS(body.path, BODY_LINE_POINTS, params.length);
     return body;
 }
 
@@ -247,7 +249,9 @@ SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
     if (step > 0.0f)
         next.path.push_back({kin.pos, nose.arc + step});
     trimPath(next.path, params.length);
-    next.spine = placeSpine(next.path, params);
+    next.spine = placeAtUniformS(next.path, params.node_count, params.length);
+    next.body_line =
+        placeAtUniformS(next.path, BODY_LINE_POINTS, params.length);
     // With zero amplitude omega is undefined, and a length pass would pull the
     // spine's chords off a curved path.
     if (params.wave_amplitude == 0.0f)
@@ -256,6 +260,28 @@ SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
     next.spine = applyWave(next.spine, next.phase, params);
     restoreSegmentLengths(next.spine, params);
     return next;
+}
+
+Vector2 nearestPointOnBodyLine(Vector2 p,
+                               const std::vector<Vector2> &body_line) {
+    Vector2 nearest = body_line.front();
+    float nearest_dist_sq = Vector2DistanceSqr(p, nearest);
+    for (size_t i = 1; i < body_line.size(); ++i) {
+        Vector2 a = body_line[i - 1];
+        Vector2 segment = body_line[i] - a;
+        float length_sq = Vector2LengthSqr(segment);
+        float t = length_sq > 0.0f
+                      ? Clamp(Vector2DotProduct(p - a, segment) / length_sq,
+                              0.0f, 1.0f)
+                      : 0.0f;
+        Vector2 foot = a + segment * t;
+        float dist_sq = Vector2DistanceSqr(p, foot);
+        if (dist_sq < nearest_dist_sq) {
+            nearest = foot;
+            nearest_dist_sq = dist_sq;
+        }
+    }
+    return nearest;
 }
 
 BodyShape buildBodyShape(const std::vector<Vector2> &spine, float length) {

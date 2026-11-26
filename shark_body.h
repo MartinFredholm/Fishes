@@ -3,6 +3,8 @@
 #include "kinematics.h"
 #include <vector>
 
+constexpr int BODY_LINE_POINTS = 5;
+
 struct BodyParams {
     float length;
     int node_count;
@@ -22,12 +24,15 @@ struct SharkBody {
     std::vector<PathPoint> path;
     float phase = 0.0f;
     std::vector<Vector2> spine;
+    std::vector<Vector2> body_line;
 };
 
 SharkBody seedSharkBody(const Kinematics &kin, const BodyParams &params);
 
 SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
                           const BodyParams &params, float dt);
+
+Vector2 nearestPointOnBodyLine(Vector2 p, const std::vector<Vector2> &body_line);
 
 // left is screen-left of the swimming direction (y down). Each rigid part is a
 // triangle fan around its first vertex, the attachment point on the spine,

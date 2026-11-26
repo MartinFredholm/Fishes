@@ -454,7 +454,8 @@ Vector2 desiredFishAcceleration(int i, const std::vector<Shark> &sharks,
     Vector2 a_cruise = self.heading * (params.v_cruise - self.v);
 
     for (const Shark &s : sharks) {
-        Vector2 relative_pos = s.kin.pos - self.pos;
+        Vector2 relative_pos =
+            nearestPointOnBodyLine(self.pos, s.body.body_line) - self.pos;
         float distance = Vector2Length(relative_pos);
         if (distance > (FISH_FLEE_RANGE) || distance < 1e-6f) {
             continue;
