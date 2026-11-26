@@ -4,8 +4,8 @@
 #include "motion.h"
 #include <vector>
 
-constexpr float SHARK_AVOID_HORIZON = 2.5f;
-constexpr float SHARK_AVOID_MARGIN = 0.2f;
+constexpr float SHARK_AVOID_HORIZON = 8.0f;
+constexpr float SHARK_AVOID_MARGIN = 1.6f;
 constexpr float SHARK_CONTACT_DISTANCE = 0.36f;
 constexpr float SHARK_AVOID_DT = 1.0f / 30.0f;
 

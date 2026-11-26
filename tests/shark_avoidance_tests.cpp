@@ -109,7 +109,9 @@ TEST_CASE("a shark crossing the predicted path within the horizon causes a "
 
 TEST_CASE("side by side, parallel at the same heading and speed, outside "
           "contact distance plus margin: no takeover") {
-    constexpr float BEYOND_CONTACT_PLUS_MARGIN = 0.6f;
+    constexpr float GAP_BEYOND_TAKEOVER = 0.04f;
+    constexpr float BEYOND_CONTACT_PLUS_MARGIN =
+        SHARK_CONTACT_DISTANCE + SHARK_AVOID_MARGIN + GAP_BEYOND_TAKEOVER;
     std::vector<OtherShark> others = {straightShark(
         {10.0f, 8.0f + BEYOND_CONTACT_PLUS_MARGIN}, 0.0f, 1.0f)};
     Commands result = avoidSharks(SELF_EAST_MID_WORLD, STRAIGHT_AT_CRUISE,
@@ -158,9 +160,11 @@ TEST_CASE("side by side inside contact distance plus margin but outside "
 
 TEST_CASE("the trigger uses the commanded path, not the current heading") {
     constexpr Commands FULL_LEFT_AT_CRUISE = {.v_cmd = 1.0f, .r_cmd = 0.8f};
-    Vector2 on_left_turn_circle = {11.25f, 6.75f};
+    Vector2 top_of_left_turn_circle = {10.0f, 5.5f};
+    REQUIRE(SELF_EAST_MID_WORLD.pos.y - top_of_left_turn_circle.y >
+            SHARK_CONTACT_DISTANCE + SHARK_AVOID_MARGIN);
     std::vector<OtherShark> others = {
-        straightShark(on_left_turn_circle, -HALF_PI, 0.0f)};
+        straightShark(top_of_left_turn_circle, -HALF_PI, 0.0f)};
 
     SUBCASE("commanded straight: unchanged") {
         Commands result = avoidSharks(SELF_EAST_MID_WORLD, STRAIGHT_AT_CRUISE,

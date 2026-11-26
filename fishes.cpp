@@ -53,7 +53,7 @@ constexpr BodyParams SHARK_BODY = {.length = SHARK_LENGTH,
                                    .length_passes = 1};
 
 constexpr float SHARK_SIGHT_RANGE = 6.0f;
-constexpr float SHARK_COMFORT_RANGE = 4.0f;
+constexpr float SHARK_COMFORT_RANGE = 6.0f;
 constexpr float SHARK_HUNGER_RATE = 0.05f;
 constexpr float SHARK_EAT_DISTANCE = 0.3f;
 constexpr float SHARK_EAT_DURATION = 5.0f;
@@ -69,7 +69,7 @@ constexpr float T_ALIGN = 0.5f;
 constexpr float T_CRUISE = 0.5f;
 constexpr float W_COHERENCE = 2.0f;
 constexpr float W_FISH_SEPARATION = 0.9f;
-constexpr float W_SHARK_SEPARATION = 0.9f;
+constexpr float W_SHARK_SEPARATION = 4.0f;
 constexpr float W_FLEE = 3.0f;
 constexpr float W_CHASE = 3.0f;
 
