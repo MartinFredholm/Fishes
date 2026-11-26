@@ -1,34 +1,12 @@
 #include "doctest/doctest.h"
 
-#include "shark_body.h"
+#include "test_support.h"
 #include <cmath>
+#include <vector>
 
 namespace {
 
-constexpr float L = 3.0f;
-constexpr int NODES = 24;
-constexpr double PI_D = 3.14159265358979323846;
-
-BodyParams waveBody() {
-    return {.length = L,
-            .node_count = NODES,
-            .wave_amplitude = 0.1f,
-            .wave_number = 5.3f,
-            .strouhal = 0.3f,
-            .length_passes = 1};
-}
-
-Kinematics kinAt(Vector2 pos, float phi, float v) {
-    return {pos, phi, v, 0.0f, {std::cos(phi), -std::sin(phi)}};
-}
-
-Kinematics straightStep(const Kinematics &kin, float dt) {
-    return kinAt({kin.pos.x + kin.heading.x * kin.v * dt,
-                  kin.pos.y + kin.heading.y * kin.v * dt},
-                 kin.phi, kin.v);
-}
-
-float dist(Vector2 a, Vector2 b) { return std::hypot(a.x - b.x, a.y - b.y); }
+constexpr float WAVE_AMPLITUDE = 0.1f;
 
 struct Frame {
     Vector2 origin;
@@ -40,13 +18,6 @@ struct Frame {
         return (p.x - origin.x) * fwd.y - (p.y - origin.y) * fwd.x;
     }
 };
-
-Kinematics turnStep(const Kinematics &kin, float r, float dt) {
-    Kinematics next = straightStep(kin, dt);
-    next = kinAt(next.pos, kin.phi + r * dt, kin.v);
-    next.r = r;
-    return next;
-}
 
 void checkSegmentLengths(const SharkBody &body) {
     const float rest = L / (NODES - 1);
@@ -60,10 +31,28 @@ void checkSegmentLengths(const SharkBody &body) {
 
 double angleDiff(double a, double b) { return std::remainder(a - b, 2.0 * PI_D); }
 
+double lateral(Vector2 p, Vector2 origin, Vector2 fwd) {
+    return (double)(p.x - origin.x) * fwd.y - (double)(p.y - origin.y) * fwd.x;
+}
+
+std::vector<double> lateralOffsets(float phase, int nodes) {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE, nodes, 0);
+    Kinematics kin = kinAt({3.0f, 1.0f}, 0.0f, 0.0f);
+    SharkBody body = seedSharkBody(kin, params);
+    body.phase = phase;
+    SharkBody next = updateSharkBody(body, kin, params, 0.0f);
+    std::vector<double> h(nodes);
+    for (int i = 0; i < nodes; ++i)
+        h[i] = lateral(next.spine[i], kin.pos, kin.heading);
+    return h;
+}
+
 } // namespace
 
-TEST_CASE("R9: one update advances the phase by pi u dt") {
-    const BodyParams params = waveBody();
+TEST_SUITE("body wave") {
+
+TEST_CASE("one update advances the phase by pi v dt") {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE);
     const float u = 1.7f;
     const float dt = 0.02f;
     Kinematics kin = kinAt({5.0f, 5.0f}, 0.3f, u);
@@ -76,11 +65,9 @@ TEST_CASE("R9: one update advances the phase by pi u dt") {
     CHECK(std::abs(angleDiff(next.phase, expected)) <= 1e-6);
 }
 
-TEST_CASE("R8: wave offset at the blog's six amplitude points") {
+TEST_CASE("wave offset at the blog's six amplitude points") {
     const double amp[] = {0.2, 0.21, 0.23, 0.4, 0.88, 1.0};
-    BodyParams params = waveBody();
-    params.node_count = 6;
-    params.length_passes = 0;
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE, 6, 0);
     const float phi = 2.1f;
     const float u = 1.0f;
     const float dt = 1.0f / 60.0f;
@@ -108,8 +95,31 @@ TEST_CASE("R8: wave offset at the blog's six amplitude points") {
     }
 }
 
-TEST_CASE("R10: every segment within 0.1 % of L/23 after every update") {
-    const BodyParams params = waveBody();
+TEST_CASE("amplitude envelope passes through the six points and has no slope "
+          "jump at them") {
+    const int nodes = 301;
+    const double knots[] = {0.2, 0.21, 0.23, 0.4, 0.88, 1.0};
+    std::vector<double> h_sin = lateralOffsets(0.7f, nodes);
+    std::vector<double> h_cos = lateralOffsets(0.7f + (float)PI_D / 2.0f, nodes);
+    std::vector<double> amp(nodes);
+    for (int i = 0; i < nodes; ++i)
+        amp[i] = std::hypot(h_sin[i], h_cos[i]) / (0.1 * L);
+
+    const double ds = 1.0 / (nodes - 1);
+    for (int k = 0; k < 6; ++k) {
+        CAPTURE(k);
+        int i = k * 60;
+        CHECK(amp[i] == doctest::Approx(knots[k]).epsilon(1e-3));
+        if (k == 0 || k == 5)
+            continue;
+        double left = (amp[i] - amp[i - 1]) / ds;
+        double right = (amp[i + 1] - amp[i]) / ds;
+        CHECK(std::abs(right - left) < 0.3);
+    }
+}
+
+TEST_CASE("every segment within 0.1 % of L/23 after every update") {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE);
     const float dt = 1.0f / 60.0f;
 
     SUBCASE("straight") {
@@ -138,9 +148,9 @@ TEST_CASE("R10: every segment within 0.1 % of L/23 after every update") {
     }
 }
 
-TEST_CASE("R11: straight at cruise, peak tail-tip offset over a beat is "
-          "0.30 m +/- 20 %") {
-    const BodyParams params = waveBody();
+TEST_CASE("straight at cruise, peak tail-tip offset over a beat is 0.30 m "
+          "+/- 20 %") {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE);
     const float u = 1.0f;
     const float dt = 1.0f / 60.0f;
     const float beat_period = 2.0f / u;
@@ -162,8 +172,31 @@ TEST_CASE("R11: straight at cruise, peak tail-tip offset over a beat is "
     CHECK(peak == doctest::Approx(0.30).epsilon(0.20));
 }
 
-TEST_CASE("R12: uneven dt (all <= 1/30 s) still meets R9 and R10") {
-    const BodyParams params = waveBody();
+TEST_CASE("straight at cruise with uneven dt, peak tail-tip offset is "
+          "0.30 m +/- 20 %") {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE);
+    const float uneven[] = {1.0f / 30.0f, 0.007f, 1.0f / 144.0f, 0.019f,
+                            0.001f};
+    Kinematics kin = kinAt({2.0f, 3.0f}, -1.1f, 1.0f);
+    const Vector2 origin = kin.pos, fwd = kin.heading;
+    SharkBody body = seedSharkBody(kin, params);
+    float t = 0.0f;
+    int step = 0;
+    double peak = 0.0;
+    while (t < L + 2.0f) {
+        float dt = uneven[step++ % 5];
+        t += dt;
+        kin = straightStep(kin, dt);
+        body = updateSharkBody(body, kin, params, dt);
+        if (t >= L)
+            peak = std::fmax(peak, std::abs(lateral(body.spine.back(), origin, fwd)));
+    }
+    CHECK(peak == doctest::Approx(0.30).epsilon(0.20));
+}
+
+TEST_CASE("uneven dt (all <= 1/30 s) keeps the phase advance and the segment "
+          "lengths") {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE);
     const std::vector<float> uneven = {1.0f / 30.0f, 0.004f, 1.0f / 144.0f,
                                        0.021f,       0.0005f, 1.0f / 33.0f,
                                        0.0f,         0.012f};
@@ -182,4 +215,23 @@ TEST_CASE("R12: uneven dt (all <= 1/30 s) still meets R9 and R10") {
             checkSegmentLengths(body);
         }
     }
+}
+
+TEST_CASE("the drawn nose sways about the nose by A*L*amp(0) = 0.06 m") {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE);
+    const float dt = 1.0f / 60.0f;
+    Kinematics kin = kinAt({5.0f, 8.0f}, 0.5f, 1.0f);
+    SharkBody body = seedSharkBody(kin, params);
+    double peak = 0.0;
+    for (int step = 0; step < 600; ++step) {
+        kin = straightStep(kin, dt);
+        body = updateSharkBody(body, kin, params, dt);
+        double sway = std::hypot(body.spine[0].x - kin.pos.x,
+                                 body.spine[0].y - kin.pos.y);
+        CHECK(sway <= 0.06 + 1e-4);
+        peak = std::fmax(peak, sway);
+    }
+    CHECK(peak == doctest::Approx(0.06).epsilon(0.02));
+}
+
 }

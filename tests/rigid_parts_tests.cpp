@@ -1,22 +1,16 @@
 #include "doctest/doctest.h"
 
-#include "shark_body.h"
+#include "test_support.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
 namespace {
 
-constexpr float L = 3.0f;
-constexpr float MM = 0.001f;
-constexpr float TIGHTEST_TURN_RADIUS = 0.625f;
 constexpr float LEFT = 1.0f;
 constexpr float RIGHT = -1.0f;
 
 constexpr int ANCHOR_NODES = 51;
-constexpr int PRODUCTION_NODES = 24;
-
-float dist(Vector2 a, Vector2 b) { return std::hypot(a.x - b.x, a.y - b.y); }
 
 struct KnownSpine {
     std::vector<Vector2> nodes;
@@ -62,7 +56,7 @@ KnownSpine arc(Vector2 centre, float radius, float bend, int node_count) {
 
 std::vector<KnownSpine> testSpines() {
     std::vector<KnownSpine> spines;
-    for (int nodes : {ANCHOR_NODES, PRODUCTION_NODES}) {
+    for (int nodes : {ANCHOR_NODES, NODES}) {
         spines.push_back(straight({12.0f, 7.0f}, {0.6f, -0.8f}, nodes));
         spines.push_back(straight({5.0f, 5.0f}, {-1.0f, 0.0f}, nodes));
         for (float radius : {3.0f, 1.5f, TIGHTEST_TURN_RADIUS})
@@ -143,9 +137,71 @@ void checkFin(const std::vector<Vector2> &part, const KnownSpine &spine,
     CHECK(has_root_end);
 }
 
+float polygonArea(const std::vector<Vector2> &p) {
+    float sum = 0.0f;
+    for (size_t i = 0; i < p.size(); ++i) {
+        const Vector2 &a = p[i], &b = p[(i + 1) % p.size()];
+        sum += a.x * b.y - b.x * a.y;
+    }
+    return 0.5f * std::abs(sum);
+}
+
+bool insideTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c) {
+    float d1 = cross(a, b, p), d2 = cross(b, c, p), d3 = cross(c, a, p);
+    return (d1 > 0 && d2 > 0 && d3 > 0) || (d1 < 0 && d2 < 0 && d3 < 0);
+}
+
+bool insideFan(Vector2 p, const std::vector<Vector2> &fan) {
+    for (size_t i = 1; i + 1 < fan.size(); ++i)
+        if (insideTriangle(p, fan[0], fan[i], fan[i + 1]))
+            return true;
+    return false;
+}
+
+void checkHeadCovered(const std::vector<Vector2> &spine) {
+    BodyShape shape = buildBodyShape(spine, L);
+    REQUIRE(shape.rigid_parts.size() == BodyShape::RIGID_PART_COUNT);
+    const std::vector<Vector2> &head = shape.rigid_parts[BodyShape::CEPHALOFOIL];
+    CHECK(insideFan(shape.left[0], head));
+    CHECK(insideFan(shape.right[0], head));
+}
+
+Vector2 sub(Vector2 a, Vector2 b) { return {a.x - b.x, a.y - b.y}; }
+
+Vector2 unit(Vector2 a) {
+    float n = std::hypot(a.x, a.y);
+    return {a.x / n, a.y / n};
+}
+
+float crossDir(Vector2 a, Vector2 b) { return a.x * b.y - a.y * b.x; }
+
+float turnAt(const std::vector<Vector2> &spine, int i) {
+    Vector2 u = sub(spine[i], spine[i - 1]), w = sub(spine[i + 1], spine[i]);
+    return std::atan2(crossDir(u, w), u.x * w.x + u.y * w.y);
+}
+
+// At v_min and r_max the body update sometimes folds the spine at nodes 13–14
+// (1.2–1.6 rad between adjacent segments). This test skips those frames.
+bool smooth(const std::vector<Vector2> &spine) {
+    for (int i = 1; i + 1 < (int)spine.size(); ++i)
+        if (std::abs(turnAt(spine, i)) > 0.5f)
+            return false;
+    return true;
+}
+
+// Tangent at node 0 of the circle through nodes 0, 1 and 2.
+Vector2 noseTailward(const std::vector<Vector2> &spine) {
+    Vector2 c = unit(sub(spine[1], spine[0]));
+    float a = -turnAt(spine, 1) / 2;
+    return {c.x * std::cos(a) - c.y * std::sin(a),
+            c.x * std::sin(a) + c.y * std::cos(a)};
+}
+
 } // namespace
 
-TEST_CASE("R15: cephalofoil attached at s = 0 and oriented by the tangent") {
+TEST_SUITE("rigid parts") {
+
+TEST_CASE("cephalofoil attached at s = 0 and oriented by the tangent") {
     for (const KnownSpine &spine : testSpines()) {
         CAPTURE(spine.nodes.size());
         CAPTURE(spine.radius);
@@ -172,8 +228,7 @@ TEST_CASE("R15: cephalofoil attached at s = 0 and oriented by the tangent") {
     }
 }
 
-TEST_CASE("R15: pectoral fins attached at s = 0.26 and oriented by the "
-          "tangent") {
+TEST_CASE("pectoral fins attached at s = 0.26 and oriented by the tangent") {
     for (const KnownSpine &spine : testSpines()) {
         CAPTURE(spine.nodes.size());
         CAPTURE(spine.radius);
@@ -187,8 +242,7 @@ TEST_CASE("R15: pectoral fins attached at s = 0.26 and oriented by the "
     }
 }
 
-TEST_CASE("R15: pelvic fins attached at s = 0.54 and oriented by the "
-          "tangent") {
+TEST_CASE("pelvic fins attached at s = 0.54 and oriented by the tangent") {
     for (const KnownSpine &spine : testSpines()) {
         CAPTURE(spine.nodes.size());
         CAPTURE(spine.radius);
@@ -202,7 +256,7 @@ TEST_CASE("R15: pelvic fins attached at s = 0.54 and oriented by the "
     }
 }
 
-TEST_CASE("R15: only the cephalofoil and the paired fins, no dorsal fins") {
+TEST_CASE("only the cephalofoil and the paired fins, no dorsal fins") {
     for (const KnownSpine &spine : testSpines()) {
         CAPTURE(spine.nodes.size());
         CAPTURE(spine.radius);
@@ -212,16 +266,8 @@ TEST_CASE("R15: only the cephalofoil and the paired fins, no dorsal fins") {
     }
 }
 
-namespace {
-
-float cross(Vector2 o, Vector2 a, Vector2 b) {
-    return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-}
-
-} // namespace
-
-TEST_CASE("R17: every rigid-part fan triangle is wound like the outline "
-          "strip, so the draw culls none of them") {
+TEST_CASE("every rigid-part fan triangle is wound like the outline strip, "
+          "and no fan overlaps itself") {
     for (const KnownSpine &spine : testSpines()) {
         CAPTURE(spine.nodes.size());
         CAPTURE(spine.radius);
@@ -232,10 +278,108 @@ TEST_CASE("R17: every rigid-part fan triangle is wound like the outline "
         for (size_t p = 0; p < shape.rigid_parts.size(); ++p) {
             CAPTURE(p);
             const std::vector<Vector2> &part = shape.rigid_parts[p];
+            float fan_area = 0.0f;
             for (size_t i = 1; i + 1 < part.size(); ++i) {
                 CAPTURE(i);
-                CHECK(strip_sign * cross(part[0], part[i], part[i + 1]) > 0);
+                float twice_area = strip_sign * cross(part[0], part[i], part[i + 1]);
+                CHECK(twice_area > 0);
+                fan_area += 0.5f * twice_area;
+            }
+            std::vector<Vector2> rim = part;
+            if (p == BodyShape::CEPHALOFOIL)
+                rim.assign(part.begin() + 1, part.end() - 1);
+            CHECK(std::abs(fan_area - polygonArea(rim)) <= 1e-4f);
+        }
+    }
+}
+
+TEST_CASE("the cephalofoil covers the front of the outline on straight and "
+          "bent spines") {
+    checkHeadCovered(straightSpine({10.0f, 5.0f}, {1.0f, 0.0f}));
+    for (float radius : {3.0f, 1.5f, TIGHTEST_TURN_RADIUS})
+        for (float bend : {1.0f, -1.0f}) {
+            CAPTURE(radius);
+            CAPTURE(bend);
+            checkHeadCovered(arcSpine({15.0f, 8.0f}, radius, bend));
+        }
+}
+
+TEST_CASE("the cephalofoil covers the front of the outline while swimming and "
+          "turning") {
+    const BodyParams params = bodyParams(0.1f);
+    const float dt = 1.0f / 60.0f;
+    for (float v : {0.5f, 1.0f, 2.5f})
+        for (float r : {0.0f, 0.8f, -0.8f}) {
+            CAPTURE(v);
+            CAPTURE(r);
+            Kinematics kin = kinAt({15.0f, 8.0f}, 0.3f, v, r);
+            SharkBody body = seedSharkBody(kin, params);
+            for (int f = 0; f < 300; ++f) {
+                kin = turnStep(kin, r, dt);
+                body = updateSharkBody(body, kin, params, dt);
+                if (f % 7 == 0)
+                    checkHeadCovered(body.spine);
+            }
+        }
+}
+
+TEST_CASE("rigid parts on a swum, waved, turning spine") {
+    const BodyParams params = bodyParams(0.1f);
+    const float v_min = 0.5f, r_max = 0.8f, dt = 1.0f / 60.0f;
+    const float max_angle_error_rad = 0.035f;
+    for (float r : {r_max, -r_max, 0.0f}) {
+        CAPTURE(r);
+        Kinematics kin = kinAt({15.0f, 8.0f}, 0.3f, v_min, r);
+        SharkBody body = seedSharkBody(kin, params);
+        for (int f = 0; f < 600; ++f) {
+            kin = turnStep(kin, r, dt);
+            body = updateSharkBody(body, kin, params, dt);
+            if (f % 37 != 0 || !smooth(body.spine))
+                continue;
+            BodyShape shape = buildBodyShape(body.spine, L);
+            REQUIRE(shape.rigid_parts.size() == 5);
+
+            CHECK(dist(shape.rigid_parts[BodyShape::CEPHALOFOIL][0],
+                       body.spine[0]) <= MM);
+            const float ahead = (6.0f / 23.0f - 0.26f) * L;
+            for (auto part : {BodyShape::PECTORAL_LEFT,
+                              BodyShape::PECTORAL_RIGHT})
+                CHECK(std::abs(dist(shape.rigid_parts[part][0],
+                                    body.spine[6]) - ahead) <= MM);
+            for (auto part : {BodyShape::PELVIC_LEFT,
+                              BodyShape::PELVIC_RIGHT}) {
+                Vector2 a = shape.rigid_parts[part][0];
+                CHECK(dist(a, body.spine[12]) + dist(a, body.spine[13]) -
+                          L / 23 <= MM);
+                CHECK(std::abs(dist(a, body.spine[12]) -
+                               (0.54f - 12.0f / 23.0f) * L) <= 2 * MM);
+            }
+
+            Vector2 back = noseTailward(body.spine);
+            const auto &head = shape.rigid_parts[BodyShape::CEPHALOFOIL];
+            bool found = false;
+            for (Vector2 q : head) {
+                Vector2 d = {q.x - head[0].x, q.y - head[0].y};
+                if (std::abs(std::hypot(d.x, d.y) - 0.05f * L) > 0.01f)
+                    continue;
+                Vector2 u = unit(d);
+                if (u.x * back.x + u.y * back.y > std::cos(max_angle_error_rad))
+                    found = true;
+            }
+            CHECK(found);
+
+            Vector2 fwd = unit({body.spine[5].x - body.spine[7].x,
+                                body.spine[5].y - body.spine[7].y});
+            for (Vector2 q : shape.rigid_parts[BodyShape::PECTORAL_LEFT]) {
+                Vector2 d = {q.x - body.spine[6].x, q.y - body.spine[6].y};
+                CHECK(crossDir(fwd, d) <= 0.01f);
+            }
+            for (Vector2 q : shape.rigid_parts[BodyShape::PECTORAL_RIGHT]) {
+                Vector2 d = {q.x - body.spine[6].x, q.y - body.spine[6].y};
+                CHECK(crossDir(fwd, d) >= -0.01f);
             }
         }
     }
+}
+
 }
