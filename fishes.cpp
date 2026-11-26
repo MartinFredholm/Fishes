@@ -15,6 +15,7 @@ struct MotionParams {
     float T_r;
     float K_phi;
     float tau;
+    float wall_clearance;
 };
 
 constexpr int N_FISH = 4000;
@@ -33,7 +34,8 @@ constexpr MotionParams FISH_MOTION = {.v_min = 0.15f,
                                       .T_v = 0.2f,
                                       .T_r = 0.05f,
                                       .K_phi = 5.0f,
-                                      .tau = 0.3f};
+                                      .tau = 0.3f,
+                                      .wall_clearance = 0.0f};
 
 constexpr float FISH_SIGHT_RANGE = 1.0f;
 constexpr float FISH_FLEE_RANGE = 1.8f;
@@ -42,6 +44,8 @@ constexpr float FISH_COMFORT_RANGE = 0.4f;
 constexpr float SHARK_LENGTH = 3.0f;
 constexpr Color SHARK_COLOR = {140, 128, 106, 255};
 
+constexpr float SHARK_HALF_SPAN_AT_PECTORAL_TIPS = 0.2f * SHARK_LENGTH;
+
 constexpr MotionParams SHARK_MOTION = {.v_min = 0.5f,
                                        .v_cruise = 1.0f,
                                        .v_max = 2.5f,
@@ -49,7 +53,9 @@ constexpr MotionParams SHARK_MOTION = {.v_min = 0.5f,
                                        .T_v = 1.0f,
                                        .T_r = 0.4f,
                                        .K_phi = 4.0f,
-                                       .tau = 0.3f};
+                                       .tau = 0.3f,
+                                       .wall_clearance =
+                                           SHARK_HALF_SPAN_AT_PECTORAL_TIPS};
 
 constexpr BodyParams SHARK_BODY = {.length = SHARK_LENGTH,
                                    .node_count = 24,
@@ -345,9 +351,11 @@ inline float wallRamp(float d) {
     return Clamp(1.0f - d / WALL_BUFFER_DIST, 0.0f, 1.0f);
 }
 
-Vector2 wallRepulsion(Vector2 pos) {
-    return {wallRamp(pos.x) - wallRamp(WORLD_WIDTH - pos.x),
-            wallRamp(pos.y) - wallRamp(WORLD_HEIGHT - pos.y)};
+Vector2 wallRepulsion(Vector2 pos, float clearance) {
+    return {wallRamp(pos.x - clearance) -
+                wallRamp(WORLD_WIDTH - pos.x - clearance),
+            wallRamp(pos.y - clearance) -
+                wallRamp(WORLD_HEIGHT - pos.y - clearance)};
 }
 
 Target sharkGetTarget(int i, const std::vector<Shark> &sharks,
@@ -392,7 +400,7 @@ Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,
         }
     }
 
-    Vector2 a_walls = wallRepulsion(self.kin.pos);
+    Vector2 a_walls = wallRepulsion(self.kin.pos, params.wall_clearance);
 
     Vector2 a_cruise = self.kin.heading * (params.v_cruise - self.kin.v);
 
@@ -441,7 +449,7 @@ Vector2 desiredFishAcceleration(int i, const std::vector<Shark> &sharks,
         a_align = (sum_vel / adj_fish) - self.heading * self.v;
     }
 
-    Vector2 a_walls = wallRepulsion(self.pos);
+    Vector2 a_walls = wallRepulsion(self.pos, params.wall_clearance);
 
     Vector2 a_cruise = self.heading * (params.v_cruise - self.v);
 
@@ -472,20 +480,22 @@ Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
     return {v_cmd, r_cmd};
 };
 
-float circleClearance(Vector2 c, float R) {
-    return std::min(
-        {c.x - R, WORLD_WIDTH - c.x - R, c.y - R, WORLD_HEIGHT - c.y - R});
+float circleClearance(Vector2 c, float R, float wall_clearance) {
+    return std::min({c.x - R, WORLD_WIDTH - c.x - R, c.y - R,
+                     WORLD_HEIGHT - c.y - R}) -
+           wall_clearance;
 }
 
-Vector2 nearWallNormal(Vector2 p) {
+Vector2 nearWallNormal(Vector2 p, float clearance) {
+    float buffer = WALL_BUFFER_DIST + clearance;
     Vector2 n{0, 0};
-    if (p.x < WALL_BUFFER_DIST)
+    if (p.x < buffer)
         n.x += 1;
-    if (p.x > WORLD_WIDTH - WALL_BUFFER_DIST)
+    if (p.x > WORLD_WIDTH - buffer)
         n.x -= 1;
-    if (p.y < WALL_BUFFER_DIST)
+    if (p.y < buffer)
         n.y += 1;
-    if (p.y > WORLD_HEIGHT - WALL_BUFFER_DIST)
+    if (p.y > WORLD_HEIGHT - buffer)
         n.y -= 1;
     return n;
 }
@@ -497,10 +507,12 @@ Commands safetyFilter(Commands cmd, const Kinematics &kin,
     float R = kin.v / params.r_max;
     float margin = kin.v * params.T_r + SAFETY_MARGIN;
 
-    float clearPos = circleClearance(kin.pos + left * R, R);
-    float clearNeg = circleClearance(kin.pos - left * R, R);
+    float clearPos =
+        circleClearance(kin.pos + left * R, R, params.wall_clearance);
+    float clearNeg =
+        circleClearance(kin.pos - left * R, R, params.wall_clearance);
 
-    Vector2 n = nearWallNormal(kin.pos);
+    Vector2 n = nearWallNormal(kin.pos, params.wall_clearance);
     bool heading_out = Vector2DotProduct(fwd, n) > 0.0f;
     if (heading_out || std::max(clearPos, clearNeg) >= margin)
         return cmd;

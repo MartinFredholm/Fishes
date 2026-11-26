@@ -164,11 +164,11 @@ TEST_CASE("R15: cephalofoil attached at s = 0 and oriented by the tangent") {
         auto [min_left, max_left] = std::minmax_element(
             local.begin(), local.end(),
             [](Local a, Local b) { return a.left < b.left; });
-        CHECK(std::abs(min_back->back) <= MM);
-        CHECK(std::abs(max_back->back - 0.08f * L) <= MM);
+        CHECK(std::abs(min_back->back + 0.01f * L) <= MM);
+        CHECK(std::abs(max_back->back - 0.07f * L) <= MM);
         CHECK(std::abs(max_left->left - 0.135f * L) <= MM);
         CHECK(std::abs(min_left->left + 0.135f * L) <= MM);
-        CHECK(hasVertex(local, 0.06f * L, 0.0f));
+        CHECK(hasVertex(local, 0.05f * L, 0.0f));
     }
 }
 

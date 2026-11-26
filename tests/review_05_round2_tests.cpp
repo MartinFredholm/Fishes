@@ -100,7 +100,7 @@ TEST_CASE("review 05 round 2 / R15: rigid parts on a swum, waved, turning "
             bool found = false;
             for (Vector2 q : head) {
                 Vector2 d = {q.x - head[0].x, q.y - head[0].y};
-                if (std::abs(std::hypot(d.x, d.y) - 0.06f * L) > 0.01f)
+                if (std::abs(std::hypot(d.x, d.y) - 0.05f * L) > 0.01f)
                     continue;
                 Vector2 u = unit(d);
                 if (u.x * back.x + u.y * back.y > std::cos(MAX_ANGLE_ERROR_RAD))

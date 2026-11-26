@@ -61,11 +61,14 @@ struct PartVertex {
 using PartOutline = std::vector<PartVertex>;
 
 // The leading-edge curve between the spec's span, tip and chord points is a
-// guess.
+// guess. The leading edge lies ahead of the attachment so that it covers the
+// outline's blunt front; the fan therefore starts and ends at the leading-edge
+// midline to close around the attachment.
 const PartOutline CEPHALOFOIL_OUTLINE = {
-    {0.00f, 0.0f},     {0.02f, 0.08f},    {0.05f, 0.125f},  {0.07f, 0.135f},
-    {0.08f, 0.13f},    {0.06f, 0.0f},     {0.08f, -0.13f},  {0.07f, -0.135f},
-    {0.05f, -0.125f},  {0.02f, -0.08f}};
+    {0.00f, 0.0f},
+    {-0.01f, 0.0f},    {0.01f, 0.08f},    {0.04f, 0.125f},  {0.06f, 0.135f},
+    {0.07f, 0.13f},    {0.05f, 0.0f},     {0.07f, -0.13f},  {0.06f, -0.135f},
+    {0.04f, -0.125f},  {0.01f, -0.08f},   {-0.01f, 0.0f}};
 
 struct FinShape {
     float root_s;

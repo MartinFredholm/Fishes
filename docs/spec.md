@@ -30,13 +30,13 @@ The shark is a 3 m scalloped hammerhead that swims like the dogfish in the Julia
 - **R15**: Rigid parts are attached to the spine at their s positions, within 1 mm, and oriented by the local spine tangent: the cephalofoil, a pair of pectoral fins and a pair of pelvic fins. The dorsal fins are not drawn.
 - **R16**: All geometry is in world meters. Conversion to pixels happens only when drawing.
 
-### Shape values (starting values, unverified)
-These come from memory of scalloped hammerhead proportions and have **not been checked**. The user checks them against a top-view photo. All are fractions of L.
+### Shape values
+The user approved these against a top-view photo of a scalloped hammerhead. All are fractions of L.
 
 | Part | Values |
 |---|---|
 | Width w(s) | s 0.00 → 0.05, 0.10 → 0.09, 0.25 → 0.12, 0.40 → 0.11, 0.60 → 0.07, 0.75 → 0.035, 0.90 → 0.02, 1.00 → 0.005 |
-| Cephalofoil | span 0.27 (plausible range 0.24–0.30), leading edge at s = 0, wing tips swept back to s ≈ 0.08, midline chord 0.06 |
+| Cephalofoil | span 0.27, attached at s = 0, leading edge at s = −0.01 (ahead of the nose), wing tips swept back to s ≈ 0.07, midline chord 0.06 |
 | Pectoral fins | root from s 0.26 to 0.32, span 0.14 each, tips swept back to s ≈ 0.38 |
 | Pelvic fins | root from s 0.54 to 0.57, span 0.04 each, tips swept back to s ≈ 0.60 |
 
@@ -62,6 +62,8 @@ These come from memory of scalloped hammerhead proportions and have **not been c
 - **Caudal fin as the outline taper.** Reason: from above, the caudal fin is edge-on, and it lies within L, since L is total length. Rejected: a separate swept caudal polygon, which is not anatomical and extends past L.
 - **No dorsal fins and no pectoral tilt.** Reason: dorsal fins are edge-on from above, and tilting the pectorals is tuning before the basics work.
 - **Two pure seams (body update and body geometry).** Reason: tests run without a window or raylib's drawing state. Splitting motion from geometry keeps each test focused.
+- **Shape values approved by eye.** Reason: the user compared the drawn shark with a top-view photo of a scalloped hammerhead and approved the width profile and the fins as they were. The cephalofoil moved 0.01 L forward, so its leading edge lies at s = −0.01. Before, the outline's blunt front (w(0) = 0.05) showed ahead of the cephalofoil. The drawn head now reaches 3 cm ahead of the nose. Eating still measures from the nose.
+- **The shark keeps a wall clearance of 0.2 L (0.6 m); `WALL_BUFFER_DIST` stays 1 m.** Reason: the wall repulsion and the safety filter kept only the nose inside the world. At the new speeds, the drawn fins, cephalofoil and outline crossed the window edge in 13–15 % of frames, by up to 0.43 m. `MotionParams` now has a `wall_clearance` that moves the walls inward for that entity in both mechanisms. The shark's is its half-span at the pectoral tips. The fish's is 0, so fish behave as before. In a 3-minute run with the clearance, no part crossed a wall, and the closest came within 0.06 m. Rejected: raising `WALL_BUFFER_DIST`, which also changes fish.
 - **doctest, vendored.** Reason: readable float comparisons and per-test reporting, with no install. Rejected: plain `assert` (crude failures) and Catch2 (needs an install).
 
 ## Testing approach
@@ -83,11 +85,10 @@ These come from memory of scalloped hammerhead proportions and have **not been c
 ## Out of scope
 - Fish animation. Fish keep their triangles.
 - Turn amplitude boost, pectoral tilt with turning, and dorsal fins.
-- Any change to the dynamics model, the controller, the safety filter or the steering behaviours, beyond the shark constants in R3.
+- Any change to the dynamics model, the controller, the safety filter or the steering behaviours, beyond the shark constants in R3 and the shark's wall clearance (see Design decisions).
 - Fixed-timestep simulation.
 - Shading, textures or colour variation.
 - Feedback from the animation into the dynamics.
 
 ## Deferred decisions
-- Final shape values. Resolve after: the body is drawn and the user has compared it with a top-view photo. Issue: 06
-- Wall buffer for the shark (`WALL_BUFFER_DIST` = 1 m, shared with fish). Resolve after: the shark is seen swimming at the new speeds. Change it only if the shark hits walls. Issue: 06
+None.
