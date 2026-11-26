@@ -113,7 +113,11 @@ TEST_CASE("R14: the outline tapers to w(1) at the tail tip, no caudal shape") {
     BodyShape shape = buildBodyShape(spine, L);
     REQUIRE(shape.left.size() == NODES);
     REQUIRE(shape.right.size() == NODES);
-    CHECK(shape.rigid_parts.empty());
+    REQUIRE(shape.rigid_parts.size() == BodyShape::RIGID_PART_COUNT);
+    const float caudal_start_x = 5.0f - 0.75f * L;
+    for (const std::vector<Vector2> &part : shape.rigid_parts)
+        for (Vector2 v : part)
+            CHECK(v.x > caudal_start_x);
 
     const float tail_width = SPEC_WIDTH.back().width_over_L * L;
     CHECK(std::abs(dist(shape.left[NODES - 1], shape.right[NODES - 1]) -

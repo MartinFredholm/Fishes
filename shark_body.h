@@ -32,7 +32,19 @@ SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
 
 // World meters. left and right have one point per spine node; left is on the
 // screen-left of the swimming direction (y down).
+// Each rigid part is a polygon whose first vertex is its attachment point on
+// the spine. It is a triangle fan around that vertex, wound like the
+// outline's strip triangles (right, left, next right).
 struct BodyShape {
+    enum RigidPart {
+        CEPHALOFOIL,
+        PECTORAL_LEFT,
+        PECTORAL_RIGHT,
+        PELVIC_LEFT,
+        PELVIC_RIGHT,
+        RIGID_PART_COUNT
+    };
+
     std::vector<Vector2> left;
     std::vector<Vector2> right;
     std::vector<std::vector<Vector2>> rigid_parts;

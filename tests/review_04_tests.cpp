@@ -93,7 +93,14 @@ TEST_CASE("review 04 / R13, R14: end widths are w(0) and w(1) on the real "
     CHECK(std::abs(dist(shape.left[0], shape.right[0]) - 0.05f * L) <= MM);
     CHECK(std::abs(dist(shape.left[NODES - 1], shape.right[NODES - 1]) -
                    0.005f * L) <= MM);
-    CHECK(shape.rigid_parts.empty());
+    REQUIRE(shape.rigid_parts.size() == BodyShape::RIGID_PART_COUNT);
+    // Node 17 is s = 0.74, the last node ahead of the caudal start at 0.75.
+    const Vector2 c = body.spine[17];
+    const Vector2 fwd = {body.spine[16].x - body.spine[18].x,
+                         body.spine[16].y - body.spine[18].y};
+    for (const std::vector<Vector2> &part : shape.rigid_parts)
+        for (Vector2 v : part)
+            CHECK((v.x - c.x) * fwd.x + (v.y - c.y) * fwd.y > 0.0f);
 }
 
 TEST_CASE("review 04 / R13: left is the screen-left of the swimming "

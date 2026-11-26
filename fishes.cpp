@@ -317,6 +317,13 @@ void drawShark(const SharkBody &body, Color color) {
         strip.push_back(toPixels(shape.left[i]));
     }
     DrawTriangleStrip(strip.data(), (int)strip.size(), color);
+    for (const std::vector<Vector2> &part : shape.rigid_parts) {
+        std::vector<Vector2> fan;
+        fan.reserve(part.size());
+        for (Vector2 p : part)
+            fan.push_back(toPixels(p));
+        DrawTriangleFan(fan.data(), (int)fan.size(), color);
+    }
 }
 
 Kinematics integrate(const Kinematics &kin, Commands commands,

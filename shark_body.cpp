@@ -1,5 +1,6 @@
 #include "shark_body.h"
 #include "raymath.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 
@@ -54,6 +55,35 @@ constexpr std::array<Knot, 8> WIDTH_PROFILE = {
     {{0.00f, 0.05f}, {0.10f, 0.09f}, {0.25f, 0.12f}, {0.40f, 0.11f},
      {0.60f, 0.07f}, {0.75f, 0.035f}, {0.90f, 0.02f}, {1.00f, 0.005f}}};
 
+// A rigid part's vertex: distance behind its attachment point along the spine
+// tangent, and offset toward screen-left. Fractions of L.
+struct PartVertex {
+    float back;
+    float left;
+};
+
+using PartOutline = std::vector<PartVertex>;
+
+// docs/spec.md, shape values table: span 0.27, leading edge at s = 0, wing
+// tips swept back to s = 0.08, midline chord 0.06. The leading-edge curve
+// between them is a guess.
+const PartOutline CEPHALOFOIL_OUTLINE = {
+    {0.00f, 0.0f},     {0.02f, 0.08f},    {0.05f, 0.125f},  {0.07f, 0.135f},
+    {0.08f, 0.13f},    {0.06f, 0.0f},     {0.08f, -0.13f},  {0.07f, -0.135f},
+    {0.05f, -0.125f},  {0.02f, -0.08f}};
+
+// docs/spec.md, shape values table. The span is measured from the body edge
+// at root_s.
+struct FinShape {
+    float root_s;
+    float root_end_s;
+    float tip_s;
+    float span;
+};
+
+constexpr FinShape PECTORAL_FIN = {0.26f, 0.32f, 0.38f, 0.14f};
+constexpr FinShape PELVIC_FIN = {0.54f, 0.57f, 0.60f, 0.04f};
+
 Vector2 pointAtArc(const std::vector<PathPoint> &path, int &search_from,
                    float arc) {
     while (search_from > 0 && path[search_from - 1].arc > arc)
@@ -106,6 +136,69 @@ Vector2 spineLeftNormal(const std::vector<Vector2> &spine, int i) {
         noseward = spine[i - 1] - spine[i + 1];
     Vector2 tangent = Vector2Normalize(noseward);
     return {tangent.y, -tangent.x};
+}
+
+float halfWidth(float s) { return interpolateSmooth(WIDTH_PROFILE, s) / 2; }
+
+// The vertex on the spine closes the fin over the body so no gap opens in
+// bends.
+PartOutline leftFinOutline(const FinShape &fin) {
+    float root_half = halfWidth(fin.root_s);
+    return {{0.0f, 0.0f},
+            {0.0f, root_half},
+            {fin.tip_s - fin.root_s, root_half + fin.span},
+            {fin.root_end_s - fin.root_s, halfWidth(fin.root_end_s)}};
+}
+
+// Reversing all but the first vertex keeps the winding and the fan centre.
+PartOutline mirrored(const PartOutline &outline) {
+    PartOutline mirror = {{outline[0].back, -outline[0].left}};
+    for (size_t i = outline.size() - 1; i > 0; --i)
+        mirror.push_back({outline[i].back, -outline[i].left});
+    return mirror;
+}
+
+Vector2 spineTailward(const std::vector<Vector2> &spine, int i) {
+    Vector2 left = spineLeftNormal(spine, i);
+    return {left.y, -left.x};
+}
+
+struct SpineFrame {
+    Vector2 origin;
+    Vector2 back;
+};
+
+// Hermite, not linear: between 24 nodes the chord sags 3 mm off a 0.625 m
+// turn.
+SpineFrame spineFrameAt(const std::vector<Vector2> &spine, float s) {
+    int last = (int)spine.size() - 1;
+    float x = s * last;
+    int j = std::min((int)x, last - 1);
+    float t = x - j;
+    Vector2 p0 = spine[j], p1 = spine[j + 1];
+    float chord = Vector2Distance(p0, p1);
+    Vector2 m0 = spineTailward(spine, j) * chord;
+    Vector2 m1 = spineTailward(spine, j + 1) * chord;
+    float t2 = t * t, t3 = t2 * t;
+    Vector2 origin = p0 * (2 * t3 - 3 * t2 + 1) + m0 * (t3 - 2 * t2 + t) +
+                     p1 * (-2 * t3 + 3 * t2) + m1 * (t3 - t2);
+    Vector2 velocity = p0 * (6 * t2 - 6 * t) + m0 * (3 * t2 - 4 * t + 1) +
+                       p1 * (-6 * t2 + 6 * t) + m1 * (3 * t2 - 2 * t);
+    return {origin, Vector2Normalize(velocity)};
+}
+
+std::vector<Vector2> placePart(const std::vector<Vector2> &spine, float s,
+                               const PartOutline &outline, float length) {
+    SpineFrame frame = spineFrameAt(spine, s);
+    Vector2 origin = frame.origin;
+    Vector2 back = frame.back;
+    Vector2 left = {-back.y, back.x};
+    std::vector<Vector2> part;
+    part.reserve(outline.size());
+    for (PartVertex v : outline)
+        part.push_back(origin + back * (v.back * length) +
+                       left * (v.left * length));
+    return part;
 }
 
 std::vector<Vector2> applyWave(const std::vector<Vector2> &spine, float phase,
@@ -178,5 +271,18 @@ BodyShape buildBodyShape(const std::vector<Vector2> &spine, float length) {
         shape.left[i] = spine[i] + left * half_width;
         shape.right[i] = spine[i] - left * half_width;
     }
+    PartOutline pectoral = leftFinOutline(PECTORAL_FIN);
+    PartOutline pelvic = leftFinOutline(PELVIC_FIN);
+    shape.rigid_parts.resize(BodyShape::RIGID_PART_COUNT);
+    shape.rigid_parts[BodyShape::CEPHALOFOIL] =
+        placePart(spine, 0.0f, CEPHALOFOIL_OUTLINE, length);
+    shape.rigid_parts[BodyShape::PECTORAL_LEFT] =
+        placePart(spine, PECTORAL_FIN.root_s, pectoral, length);
+    shape.rigid_parts[BodyShape::PECTORAL_RIGHT] =
+        placePart(spine, PECTORAL_FIN.root_s, mirrored(pectoral), length);
+    shape.rigid_parts[BodyShape::PELVIC_LEFT] =
+        placePart(spine, PELVIC_FIN.root_s, pelvic, length);
+    shape.rigid_parts[BodyShape::PELVIC_RIGHT] =
+        placePart(spine, PELVIC_FIN.root_s, mirrored(pelvic), length);
     return shape;
 }
