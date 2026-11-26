@@ -390,8 +390,9 @@ Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,
         if (j == i) {
             continue;
         }
-        const Kinematics &other = sharks[j].kin;
-        Vector2 relative_pos = other.pos - self.kin.pos;
+        Vector2 relative_pos =
+            nearestPointOnBodyLine(self.kin.pos, sharks[j].body.body_line) -
+            self.kin.pos;
         float distance = Vector2Length(relative_pos);
         if (distance < (SHARK_COMFORT_RANGE) && distance > 1e-6f) {
 
