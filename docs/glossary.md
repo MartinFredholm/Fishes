@@ -10,7 +10,7 @@ _Not to be confused with_: fish.
 
 **Kinematics**: An entity's dynamic state (`kinematics.h`): position `pos`, heading angle `phi`, speed `v`, yaw rate `r` and the unit vector `heading`. World frame, meters, y down. The dynamics are the source of truth. The shark's body reads them and never feeds back.
 
-**Nose**: For a shark, `kin.pos`. It is the point the dynamics integrate and where the spine starts (s = 0). Eating, targeting, fleeing and shark–shark separation measure from it. The drawn nose sways around it by the body wave.
+**Nose**: For a shark, `kin.pos`. It is the point the dynamics integrate and where the spine starts (s = 0). Eating and targeting measure from it. A shark's separation from other sharks measures from its own nose to their body lines. The drawn nose sways around it by the body wave.
 _Not to be confused with_: body centre, which is what `kin.pos` means for fish.
 
 **Wall clearance**: `MotionParams::wall_clearance`, in meters. It moves the walls inward for one entity, in the wall repulsion and in the safety filter. Shark: `SHARK_HALF_SPAN_AT_PECTORAL_TIPS` (0.6 m), so the drawn body stays inside the window. Fish: 0. It is applied around `kin.pos`.
@@ -26,6 +26,9 @@ _Not to be confused with_: `WALL_BUFFER_DIST`, the distance at which wall repuls
 
 **Spine**: The shark's centreline, 24 nodes at uniform s from the nose (node 0) to the tail tip (node 23). The nodes are first placed on the nose path at arc length s·L behind the nose, so in a turn the body follows the curve the nose has traced. Then the body wave and the length pass are applied.
 _Not to be confused with_: nose path, which is dynamics history and has no body wave.
+
+**Body line**: The shark's body as steering sees it: a few points at uniform s along the nose path, from the nose (s = 0) to s = 1, joined by straight segments. It has no body wave, so the animation never feeds back into the dynamics.
+_Not to be confused with_: spine, which is the drawn centreline with the body wave.
 
 **Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3).
 
