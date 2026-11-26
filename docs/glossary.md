@@ -30,6 +30,11 @@ _Not to be confused with_: nose path, which is dynamics history and has no body 
 **Body line**: The shark's body as steering sees it: a few points at uniform s along the nose path, from the nose (s = 0) to s = 1, joined by straight segments. It has no body wave, so the animation never feeds back into the dynamics.
 _Not to be confused with_: spine, which is the drawn centreline with the body wave.
 
+**Shark contact**: Two sharks' body lines come closer than the contact distance, 0.36 m (two maximum half-widths, 2 · 0.06 L). It stands for two sharks swimming through each other or overlapping significantly. Fins or cephalofoil touching do not count.
+
+**Shark avoidance**: The hard step after a shark's steering, before the wall safety filter. It predicts the shark's own nose a few seconds ahead under three options, full left turn, straight and full right turn, against the other sharks' body lines moving straight at their current speed and against the walls. It takes over the commands when a contact is predicted.
+_Not to be confused with_: shark separation, the soft steering term from `SHARK_COMFORT_RANGE` and `W_SHARK_SEPARATION`.
+
 **Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3).
 
 **Amplitude envelope (amp(s))**: The smooth curve that scales the body wave along the body, through 0.2, 0.21, 0.23, 0.4, 0.88 and 1.0 at s = 0, 0.2, …, 1.
