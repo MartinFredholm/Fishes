@@ -11,10 +11,9 @@ constexpr float L = 3.0f;
 constexpr float MM = 0.001f;
 constexpr int NODES = 24;
 
-// docs/spec.md, shape values table: s and full width as a fraction of L.
 constexpr float KNOT_S[] = {0.00f, 0.10f, 0.25f, 0.40f,
                             0.60f, 0.75f, 0.90f, 1.00f};
-constexpr float KNOT_W[] = {0.05f, 0.09f, 0.12f, 0.11f,
+constexpr float KNOT_WIDTH_OVER_L[] = {0.05f, 0.09f, 0.12f, 0.11f,
                             0.07f, 0.035f, 0.02f, 0.005f};
 
 BodyParams reviewParams() {
@@ -32,14 +31,12 @@ Kinematics kinHeading(Vector2 pos, float phi, float v, float r) {
 
 float dist(Vector2 a, Vector2 b) { return std::hypot(a.x - b.x, a.y - b.y); }
 
-// A smooth interpolant through monotone data stays between the two bracketing
-// knot values.
 void checkWidthBracketed(float s, float width) {
     int k = 0;
     while (k + 2 < 8 && KNOT_S[k + 1] <= s)
         ++k;
-    float lo = std::min(KNOT_W[k], KNOT_W[k + 1]) * L;
-    float hi = std::max(KNOT_W[k], KNOT_W[k + 1]) * L;
+    float lo = std::min(KNOT_WIDTH_OVER_L[k], KNOT_WIDTH_OVER_L[k + 1]) * L;
+    float hi = std::max(KNOT_WIDTH_OVER_L[k], KNOT_WIDTH_OVER_L[k + 1]) * L;
     CHECK(width >= lo - MM);
     CHECK(width <= hi + MM);
 }
@@ -94,10 +91,12 @@ TEST_CASE("review 04 / R13, R14: end widths are w(0) and w(1) on the real "
     CHECK(std::abs(dist(shape.left[NODES - 1], shape.right[NODES - 1]) -
                    0.005f * L) <= MM);
     REQUIRE(shape.rigid_parts.size() == BodyShape::RIGID_PART_COUNT);
-    // Node 17 is s = 0.74, the last node ahead of the caudal start at 0.75.
-    const Vector2 c = body.spine[17];
-    const Vector2 fwd = {body.spine[16].x - body.spine[18].x,
-                         body.spine[16].y - body.spine[18].y};
+    const int last_node_before_caudal = 17;
+    const Vector2 c = body.spine[last_node_before_caudal];
+    const Vector2 fwd = {body.spine[last_node_before_caudal - 1].x -
+                             body.spine[last_node_before_caudal + 1].x,
+                         body.spine[last_node_before_caudal - 1].y -
+                             body.spine[last_node_before_caudal + 1].y};
     for (const std::vector<Vector2> &part : shape.rigid_parts)
         for (Vector2 v : part)
             CHECK((v.x - c.x) * fwd.x + (v.y - c.y) * fwd.y > 0.0f);
@@ -105,7 +104,6 @@ TEST_CASE("review 04 / R13, R14: end widths are w(0) and w(1) on the real "
 
 TEST_CASE("review 04 / R13: left is the screen-left of the swimming "
           "direction") {
-    // Swimming toward +x with y down, screen-left is -y.
     std::vector<Vector2> spine(NODES);
     for (int i = 0; i < NODES; ++i)
         spine[i] = {10.0f - L * i / (NODES - 1), 5.0f};

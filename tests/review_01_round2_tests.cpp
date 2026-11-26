@@ -8,7 +8,7 @@ namespace {
 
 constexpr float L = 3.0f;
 constexpr int NODES = 24;
-constexpr float TOL = 1e-3f; // m
+constexpr float TOL_M = 1e-3f;
 
 BodyParams flatParams() {
     return {.length = L,
@@ -28,8 +28,6 @@ struct Projection {
     float arc;
 };
 
-// Reference polyline of every nose position fed in, with arc accumulated in
-// double, independent of the body module's own bookkeeping.
 struct Reference {
     std::vector<Vector2> pts;
     std::vector<double> arc;
@@ -69,9 +67,9 @@ void checkOnReference(const SharkBody &body, const Reference &ref) {
     for (int i = 0; i < NODES; ++i) {
         CAPTURE(i);
         Projection p = ref.project(body.spine[i]);
-        CHECK(p.distance < TOL);
+        CHECK(p.distance < TOL_M);
         float s = (float)i / (NODES - 1);
-        CHECK(std::abs((float)(nose_arc - p.arc) - s * L) < TOL);
+        CHECK(std::abs((float)(nose_arc - p.arc) - s * L) < TOL_M);
     }
 }
 

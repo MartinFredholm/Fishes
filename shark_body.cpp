@@ -11,8 +11,7 @@ struct Knot {
     float value;
 };
 
-// Fritsch–Carlson monotone cubic Hermite: smooth (C1) and, unlike a natural
-// cubic spline, never overshoots the knot values.
+// Fritsch–Carlson: C1 and, unlike a natural cubic spline, never overshoots.
 template <size_t N>
 float interpolateSmooth(const std::array<Knot, N> &knots, float s) {
     if (s <= knots.front().s)
@@ -50,35 +49,29 @@ constexpr std::array<Knot, 6> WAVE_ENVELOPE = {
     {{0.0f, 0.2f}, {0.2f, 0.21f}, {0.4f, 0.23f},
      {0.6f, 0.4f}, {0.8f, 0.88f}, {1.0f, 1.0f}}};
 
-// docs/spec.md, shape values table: full body width as a fraction of L.
-constexpr std::array<Knot, 8> WIDTH_PROFILE = {
+constexpr std::array<Knot, 8> WIDTH_OVER_LENGTH = {
     {{0.00f, 0.05f}, {0.10f, 0.09f}, {0.25f, 0.12f}, {0.40f, 0.11f},
      {0.60f, 0.07f}, {0.75f, 0.035f}, {0.90f, 0.02f}, {1.00f, 0.005f}}};
 
-// A rigid part's vertex: distance behind its attachment point along the spine
-// tangent, and offset toward screen-left. Fractions of L.
 struct PartVertex {
-    float back;
-    float left;
+    float back_over_length;
+    float left_over_length;
 };
 
 using PartOutline = std::vector<PartVertex>;
 
-// docs/spec.md, shape values table: span 0.27, leading edge at s = 0, wing
-// tips swept back to s = 0.08, midline chord 0.06. The leading-edge curve
-// between them is a guess.
+// The leading-edge curve between the spec's span, tip and chord points is a
+// guess.
 const PartOutline CEPHALOFOIL_OUTLINE = {
     {0.00f, 0.0f},     {0.02f, 0.08f},    {0.05f, 0.125f},  {0.07f, 0.135f},
     {0.08f, 0.13f},    {0.06f, 0.0f},     {0.08f, -0.13f},  {0.07f, -0.135f},
     {0.05f, -0.125f},  {0.02f, -0.08f}};
 
-// docs/spec.md, shape values table. The span is measured from the body edge
-// at root_s.
 struct FinShape {
     float root_s;
     float root_end_s;
     float tip_s;
-    float span;
+    float span_from_edge;
 };
 
 constexpr FinShape PECTORAL_FIN = {0.26f, 0.32f, 0.38f, 0.14f};
@@ -121,9 +114,8 @@ void trimPath(std::vector<PathPoint> &path, float length) {
         p.arc -= base;
 }
 
-// Second-order one-sided differences at the ends: the first-order end chord
-// tilts by half a segment angle, which moves the wide nose outline by more
-// than 1 mm in tight turns.
+// Second-order differences at the ends: a first-order end chord tilts the wide
+// nose outline by more than 1 mm in tight turns.
 Vector2 spineLeftNormal(const std::vector<Vector2> &spine, int i) {
     int last = (int)spine.size() - 1;
     Vector2 noseward;
@@ -138,7 +130,7 @@ Vector2 spineLeftNormal(const std::vector<Vector2> &spine, int i) {
     return {tangent.y, -tangent.x};
 }
 
-float halfWidth(float s) { return interpolateSmooth(WIDTH_PROFILE, s) / 2; }
+float halfWidth(float s) { return interpolateSmooth(WIDTH_OVER_LENGTH, s) / 2; }
 
 // The vertex on the spine closes the fin over the body so no gap opens in
 // bends.
@@ -146,15 +138,17 @@ PartOutline leftFinOutline(const FinShape &fin) {
     float root_half = halfWidth(fin.root_s);
     return {{0.0f, 0.0f},
             {0.0f, root_half},
-            {fin.tip_s - fin.root_s, root_half + fin.span},
+            {fin.tip_s - fin.root_s, root_half + fin.span_from_edge},
             {fin.root_end_s - fin.root_s, halfWidth(fin.root_end_s)}};
 }
 
 // Reversing all but the first vertex keeps the winding and the fan centre.
 PartOutline mirrored(const PartOutline &outline) {
-    PartOutline mirror = {{outline[0].back, -outline[0].left}};
+    PartOutline mirror = {
+        {outline[0].back_over_length, -outline[0].left_over_length}};
     for (size_t i = outline.size() - 1; i > 0; --i)
-        mirror.push_back({outline[i].back, -outline[i].left});
+        mirror.push_back(
+            {outline[i].back_over_length, -outline[i].left_over_length});
     return mirror;
 }
 
@@ -196,8 +190,8 @@ std::vector<Vector2> placePart(const std::vector<Vector2> &spine, float s,
     std::vector<Vector2> part;
     part.reserve(outline.size());
     for (PartVertex v : outline)
-        part.push_back(origin + back * (v.back * length) +
-                       left * (v.left * length));
+        part.push_back(origin + back * (v.back_over_length * length) +
+                       left * (v.left_over_length * length));
     return part;
 }
 
@@ -266,7 +260,7 @@ BodyShape buildBodyShape(const std::vector<Vector2> &spine, float length) {
     shape.right.resize(n);
     for (int i = 0; i < n; ++i) {
         float s = (float)i / (n - 1);
-        float half_width = interpolateSmooth(WIDTH_PROFILE, s) * length / 2;
+        float half_width = interpolateSmooth(WIDTH_OVER_LENGTH, s) * length / 2;
         Vector2 left = spineLeftNormal(spine, i);
         shape.left[i] = spine[i] + left * half_width;
         shape.right[i] = spine[i] - left * half_width;

@@ -9,6 +9,9 @@ namespace {
 constexpr float L = 3.0f;
 constexpr float MM = 0.001f;
 constexpr int NODES = 24;
+constexpr float V_MIN = 0.5f;
+constexpr float R_MAX = 0.8f;
+constexpr float MAX_ANGLE_ERROR_RAD = 0.035f;
 
 BodyParams params() {
     return {.length = L,
@@ -39,9 +42,8 @@ float turnAt(const std::vector<Vector2> &spine, int i) {
     return std::atan2(cross(u, w), u.x * w.x + u.y * w.y);
 }
 
-// The issue 03/04 body update folds the spine at some nodes in the tightest
-// turn (turn angles above 1 rad). Interpolating across a fold is undefined,
-// so those frames are skipped here and reported in reviews/05.md.
+// The issue 03/04 body update folds the spine in the tightest turn. Frames
+// with a fold are skipped; see reviews/05.md.
 bool smooth(const std::vector<Vector2> &spine) {
     for (int i = 1; i + 1 < (int)spine.size(); ++i)
         if (std::abs(turnAt(spine, i)) > 0.5f)
@@ -49,8 +51,7 @@ bool smooth(const std::vector<Vector2> &spine) {
     return true;
 }
 
-// Tangent at node 0 of the circle through nodes 0, 1 and 2: the chord 0-1
-// turned back by half the turn angle at node 1. Points tailward.
+// Tangent at node 0 of the circle through nodes 0, 1 and 2.
 Vector2 noseTailward(const std::vector<Vector2> &spine) {
     Vector2 c = unit(sub(spine[1], spine[0]));
     float a = -turnAt(spine, 1) / 2;
@@ -63,10 +64,9 @@ Vector2 noseTailward(const std::vector<Vector2> &spine) {
 TEST_CASE("review 05 round 2 / R15: rigid parts on a swum, waved, turning "
           "spine") {
     const BodyParams p = params();
-    // v_min and r_max (docs/spec.md R3): the tightest turn.
-    for (float r : {0.8f, -0.8f, 0.0f}) {
+    for (float r : {R_MAX, -R_MAX, 0.0f}) {
         CAPTURE(r);
-        const float v = 0.5f, dt = 1.0f / 60.0f;
+        const float v = V_MIN, dt = 1.0f / 60.0f;
         Kinematics kin = kinAt({15.0f, 8.0f}, 0.3f, v, r);
         SharkBody body = seedSharkBody(kin, p);
         for (int f = 0; f < 600; ++f) {
@@ -79,17 +79,13 @@ TEST_CASE("review 05 round 2 / R15: rigid parts on a swum, waved, turning "
             BodyShape shape = buildBodyShape(body.spine, L);
             REQUIRE(shape.rigid_parts.size() == 5);
 
-            // s = 0 is node 0.
             CHECK(dist(shape.rigid_parts[BodyShape::CEPHALOFOIL][0],
                        body.spine[0]) <= MM);
-            // s = 0.26 is 0.26 - 6/23 of L ahead of node 6, i.e. 2.6 mm.
             const float ahead = (6.0f / 23.0f - 0.26f) * L;
             for (auto part : {BodyShape::PECTORAL_LEFT,
                               BodyShape::PECTORAL_RIGHT})
                 CHECK(std::abs(dist(shape.rigid_parts[part][0],
                                     body.spine[6]) - ahead) <= MM);
-            // s = 0.54 lies between nodes 12 and 13: both distances add up
-            // to the segment length L/23 within 1 mm.
             for (auto part : {BodyShape::PELVIC_LEFT,
                               BodyShape::PELVIC_RIGHT}) {
                 Vector2 a = shape.rigid_parts[part][0];
@@ -99,8 +95,6 @@ TEST_CASE("review 05 round 2 / R15: rigid parts on a swum, waved, turning "
                                (0.54f - 12.0f / 23.0f) * L) <= 2 * MM);
             }
 
-            // Orientation: the cephalofoil's midline vertex (chord 0.06 L)
-            // lies behind the nose along the nose tangent, within 2 degrees.
             Vector2 back = noseTailward(body.spine);
             const auto &head = shape.rigid_parts[BodyShape::CEPHALOFOIL];
             bool found = false;
@@ -109,12 +103,11 @@ TEST_CASE("review 05 round 2 / R15: rigid parts on a swum, waved, turning "
                 if (std::abs(std::hypot(d.x, d.y) - 0.06f * L) > 0.01f)
                     continue;
                 Vector2 u = unit(d);
-                if (u.x * back.x + u.y * back.y > std::cos(0.035f))
+                if (u.x * back.x + u.y * back.y > std::cos(MAX_ANGLE_ERROR_RAD))
                     found = true;
             }
             CHECK(found);
 
-            // Left fins on the screen-left of the swimming direction.
             Vector2 fwd = unit({body.spine[5].x - body.spine[7].x,
                                 body.spine[5].y - body.spine[7].y});
             for (Vector2 q : shape.rigid_parts[BodyShape::PECTORAL_LEFT]) {

@@ -9,13 +9,13 @@ namespace {
 
 constexpr float L = 3.0f;
 constexpr float MM = 0.001f;
+constexpr float TIGHTEST_TURN_RADIUS = 0.625f;
 
 struct WidthKnot {
     float s;
     float width_over_L;
 };
 
-// docs/spec.md, shape values table.
 constexpr std::array<WidthKnot, 8> SPEC_WIDTH = {{{0.00f, 0.05f},
                                                   {0.10f, 0.09f},
                                                   {0.25f, 0.12f},
@@ -25,7 +25,6 @@ constexpr std::array<WidthKnot, 8> SPEC_WIDTH = {{{0.00f, 0.05f},
                                                   {0.90f, 0.02f},
                                                   {1.00f, 0.005f}}};
 
-// 21 nodes put s_i = i/20 on every knot of the width table.
 constexpr int KNOT_NODES = 21;
 
 int nodeAtS(float s, int nodes) {
@@ -43,8 +42,6 @@ std::vector<Vector2> straightSpine(Vector2 nose, Vector2 fwd, int nodes) {
     return spine;
 }
 
-// bend = +1 or -1 picks the side the arc curves to. Arc length from the nose
-// to node i is s_i·L.
 std::vector<Vector2> arcSpine(Vector2 centre, float radius, float bend,
                               int nodes) {
     std::vector<Vector2> spine(nodes);
@@ -82,8 +79,7 @@ TEST_CASE("R13: straight spine, outline at ±w/2 on the screen-left normal") {
 
 TEST_CASE("R13: arc spine, outline at ±w/2 on the radial normal") {
     const Vector2 centre = {15.0f, 8.0f};
-    // 0.625 m is the tightest turn radius, v_min / r_max (docs/spec.md).
-    for (float radius : {3.0f, 1.5f, 0.625f})
+    for (float radius : {3.0f, 1.5f, TIGHTEST_TURN_RADIUS})
         for (float bend : {1.0f, -1.0f}) {
             CAPTURE(radius);
             CAPTURE(bend);
@@ -97,8 +93,7 @@ TEST_CASE("R13: arc spine, outline at ±w/2 on the radial normal") {
                 int i = nodeAtS(k.s, KNOT_NODES);
                 Vector2 outward = {(spine[i].x - centre.x) / radius,
                                    (spine[i].y - centre.y) / radius};
-                // Swimming toward the nose, the centre is on screen-left when
-                // bend = +1 (y down).
+                // bend = +1 curves toward screen-left (y down).
                 float half = bend * k.width_over_L * L / 2;
                 checkOffset(shape.left[i], spine[i], outward, -half);
                 checkOffset(shape.right[i], spine[i], outward, half);

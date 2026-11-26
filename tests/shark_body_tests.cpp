@@ -8,7 +8,7 @@ namespace {
 
 constexpr float L = 3.0f;
 constexpr int NODES = 24;
-constexpr float TOL = 1e-3f; // m
+constexpr float TOL_M = 1e-3f;
 
 BodyParams flatBody() {
     return {.length = L,
@@ -33,8 +33,8 @@ Kinematics straightStep(const Kinematics &kin, float dt) {
                  kin.phi, kin.v);
 }
 
-// Circle of radius R about c, swum with phi increasing; y is down, so
-// pos = c + R·(sin phi, cos phi) moves along heading (cos phi, −sin phi).
+// y down: pos = c + R·(sin phi, cos phi) moves along heading
+// (cos phi, −sin phi).
 struct Circle {
     Vector2 c;
     float R;
@@ -72,10 +72,10 @@ void checkSpineOnCircle(const Circle &circle, const CircleRun &run) {
     for (int i = 0; i < NODES; ++i) {
         CAPTURE(i);
         Vector2 node = run.body.spine[i];
-        CHECK(std::abs(dist(node, circle.c) - circle.R) < TOL);
+        CHECK(std::abs(dist(node, circle.c) - circle.R) < TOL_M);
         float arc_behind =
             circle.R * wrapAngle(run.phi - circle.angleOf(node));
-        CHECK(std::abs(arc_behind - nodeS(i) * L) < TOL);
+        CHECK(std::abs(arc_behind - nodeS(i) * L) < TOL_M);
     }
 }
 
@@ -91,7 +91,7 @@ TEST_CASE("R6: seeded spine is straight, length L behind the nose") {
     for (int i = 0; i < NODES; ++i) {
         Vector2 expected = {10.0f + back.x * nodeS(i) * L,
                             5.0f + back.y * nodeS(i) * L};
-        CHECK(dist(body.spine[i], expected) < TOL);
+        CHECK(dist(body.spine[i], expected) < TOL_M);
     }
 }
 
@@ -107,7 +107,7 @@ TEST_CASE("R5: path keeps at least L behind the nose and trims older points") {
 
         REQUIRE(body.path.size() >= 2);
         const PathPoint &nose = body.path.back();
-        CHECK(dist(nose.pos, kin.pos) < TOL);
+        CHECK(dist(nose.pos, kin.pos) < TOL_M);
         CHECK(nose.arc - body.path.front().arc >= L);
         CHECK(nose.arc - body.path[1].arc < L);
     }
@@ -133,10 +133,10 @@ TEST_CASE("R7: zero amplitude, straight path: nodes on the path at s_i L") {
         Vector2 rel = {body.spine[i].x - start.x, body.spine[i].y - start.y};
         float along = rel.x * fwd.x + rel.y * fwd.y;
         float across = rel.x * fwd.y - rel.y * fwd.x;
-        CHECK(std::abs(across) < TOL);
+        CHECK(std::abs(across) < TOL_M);
         float nose_along = (kin.pos.x - start.x) * fwd.x +
                            (kin.pos.y - start.y) * fwd.y;
-        CHECK(std::abs((nose_along - along) - nodeS(i) * L) < TOL);
+        CHECK(std::abs((nose_along - along) - nodeS(i) * L) < TOL_M);
     }
 }
 

@@ -12,8 +12,7 @@ struct BodyParams {
     int length_passes;
 };
 
-// arc is the distance travelled along the path, in meters; it increases toward
-// the nose.
+// arc increases toward the nose.
 struct PathPoint {
     Vector2 pos;
     float arc;
@@ -30,11 +29,9 @@ SharkBody seedSharkBody(const Kinematics &kin, const BodyParams &params);
 SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
                           const BodyParams &params, float dt);
 
-// World meters. left and right have one point per spine node; left is on the
-// screen-left of the swimming direction (y down).
-// Each rigid part is a polygon whose first vertex is its attachment point on
-// the spine. It is a triangle fan around that vertex, wound like the
-// outline's strip triangles (right, left, next right).
+// left is screen-left of the swimming direction (y down). Each rigid part is a
+// triangle fan around its first vertex, the attachment point on the spine,
+// wound like the outline strip (right, left, next right).
 struct BodyShape {
     enum RigidPart {
         CEPHALOFOIL,

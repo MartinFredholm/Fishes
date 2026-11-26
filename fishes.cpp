@@ -20,7 +20,6 @@ struct MotionParams {
 constexpr int N_FISH = 4000;
 constexpr int N_SHARKS = 2;
 
-// Simulation units are meters and seconds; pixels appear only when drawing.
 constexpr float METERS_PER_PIXEL = 0.02f;
 
 constexpr float FISH_WIDTH = 0.1f;
@@ -117,10 +116,9 @@ constexpr int GX = (int)(WORLD_WIDTH / GRID_CELL_SIZE) + 1;
 constexpr int GY = (int)(WORLD_HEIGHT / GRID_CELL_SIZE) + 1;
 
 struct Grid {
-    std::vector<int> start =
-        std::vector<int>(GX * GY + 1); // start[c]..start[c+1] = fish in cell c
+    std::vector<int> cell_start = std::vector<int>(GX * GY + 1);
     std::vector<int> fill = std::vector<int>(GX * GY);
-    std::vector<int> items; // fish indices sorted by cell
+    std::vector<int> fish_by_cell;
 
     static int cx(float x) {
         return std::clamp((int)(x / GRID_CELL_SIZE), 0, GX - 1);
@@ -130,16 +128,16 @@ struct Grid {
     }
 
     void build(const std::vector<Fish> &fish) {
-        std::fill(start.begin(), start.end(), 0);
-        items.resize(fish.size());
+        std::fill(cell_start.begin(), cell_start.end(), 0);
+        fish_by_cell.resize(fish.size());
         for (const Fish &f : fish)
-            start[cy(f.kin.pos.y) * GX + cx(f.kin.pos.x) + 1]++;
+            cell_start[cy(f.kin.pos.y) * GX + cx(f.kin.pos.x) + 1]++;
         for (int c = 0; c < GX * GY; ++c)
-            start[c + 1] += start[c];
-        std::copy(start.begin(), start.end() - 1, fill.begin());
+            cell_start[c + 1] += cell_start[c];
+        std::copy(cell_start.begin(), cell_start.end() - 1, fill.begin());
         for (int i = 0; i < (int)fish.size(); ++i) {
             const Vector2 &p = fish[i].kin.pos;
-            items[fill[cy(p.y) * GX + cx(p.x)]++] = i;
+            fish_by_cell[fill[cy(p.y) * GX + cx(p.x)]++] = i;
         }
     }
 
@@ -151,8 +149,9 @@ struct Grid {
              y <= std::min(y0 + cell_reach, GY - 1); ++y)
             for (int x = std::max(x0 - cell_reach, 0);
                  x <= std::min(x0 + cell_reach, GX - 1); ++x)
-                for (int k = start[y * GX + x]; k < start[y * GX + x + 1]; ++k)
-                    f(items[k]);
+                for (int k = cell_start[y * GX + x];
+                     k < cell_start[y * GX + x + 1]; ++k)
+                    f(fish_by_cell[k]);
     }
 };
 
