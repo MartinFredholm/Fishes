@@ -9,16 +9,6 @@
 
 namespace {
 
-constexpr MotionParams SHARK_PARAMS = {.v_min = 0.5f,
-                                       .v_cruise = 1.0f,
-                                       .v_max = 2.5f,
-                                       .r_max = 0.8f,
-                                       .T_v = 1.0f,
-                                       .T_r = 0.4f,
-                                       .K_phi = 4.0f,
-                                       .tau = 0.3f,
-                                       .wall_clearance = 0.6f};
-
 constexpr Commands STRAIGHT_AT_CRUISE = {.v_cmd = 1.0f, .r_cmd = 0.0f};
 constexpr float FRAME_DT = 1.0f / 60.0f;
 constexpr float ENCOUNTER_SECONDS = 10.0f;
@@ -66,7 +56,7 @@ float closestApproachWithAvoidance(SimShark a, SimShark b) {
 
 } // namespace
 
-TEST_SUITE("system, acceptance") {
+TEST_SUITE("shark encounters") {
 
 TEST_CASE("positive turn rate through integrate bends the body line to "
           "screen-left") {

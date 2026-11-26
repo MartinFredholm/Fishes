@@ -8,7 +8,7 @@ _Not to be confused with_: shark.
 **Shark**: A 3 m scalloped hammerhead (*Sphyrna lewini*), the predator. It is the only entity with a body (spine, body wave, outline and rigid parts).
 _Not to be confused with_: fish.
 
-**Kinematics**: An entity's dynamic state (`kinematics.h`): position `pos`, heading angle `phi`, speed `v`, yaw rate `r` and the unit vector `heading`. World frame, meters, y down. The dynamics are the source of truth. The shark's body reads them and never feeds back.
+**Kinematics**: An entity's dynamic state (`kinematics.h`): position `pos`, heading angle `phi`, speed `v`, yaw rate `r` and the unit vector `heading`. World frame, meters, y down. A positive yaw rate `r` turns screen-left of the swimming direction (`phi` increases). The dynamics are the source of truth. The shark's body reads them and never feeds back.
 
 **Nose**: For a shark, `kin.pos`. It is the point the dynamics integrate and where the spine starts (s = 0). Eating and targeting measure from it. A shark's separation from other sharks measures from its own nose to their body lines. The drawn nose sways around it by the body wave.
 _Not to be confused with_: body centre, which is what `kin.pos` means for fish.
@@ -32,8 +32,12 @@ _Not to be confused with_: spine, which is the drawn centreline with the body wa
 
 **Shark contact**: Two sharks' body lines come closer than the contact distance, 0.36 m (two maximum half-widths, 2 · 0.06 L). It stands for two sharks swimming through each other or overlapping significantly. Fins or cephalofoil touching do not count.
 
-**Shark avoidance**: The hard step after a shark's steering, before the wall safety filter. It predicts the shark's own nose a few seconds ahead under three options, full left turn, straight and full right turn, against the other sharks' body lines moving straight at their current speed and against the walls. It takes over the commands when a contact is predicted.
+**Contact probe**: A headless copy of the main loop, kept outside the repo, that counts shark contacts. Set `N_SHARKS` (10, or 2), use a fixed dt of 1/60 s, and seed with `SetRandomSeed(seed)` for seeds 1–4. Run 120 s per seed and skip the first 5 s. Each frame, sample each segment of one body line at 11 points against the nearest point on the other body line. Count a shark contact each time a pair drops below 0.36 m. The rate is contacts per minute over the 115 s counted. Build each source with its own CMake target's flags.
+
+**Shark avoidance**: The hard step after a shark's steering, before the wall safety filter. It predicts the shark's own nose a few seconds ahead under three options, full left turn, straight and full right turn, against the other sharks' body lines moving straight at their current speed and against the walls. It takes over the commands when a contact is predicted. It predicts through the real `integrate` at a fixed step of 1/30 s, so the prediction does not depend on the frame rate.
 _Not to be confused with_: shark separation, the soft steering term from `SHARK_COMFORT_RANGE` and `W_SHARK_SEPARATION`.
+
+**Takeover**: Shark avoidance takes over when the commanded commands' predicted shark clearance is below `SHARK_AVOID_MARGIN`. It then returns full left, straight or full right at `v_min`, whichever scores best.
 
 **Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3).
 

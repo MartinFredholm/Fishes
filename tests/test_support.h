@@ -1,8 +1,19 @@
 #pragma once
 
+#include "motion.h"
 #include "shark_body.h"
 #include <cmath>
 #include <vector>
+
+inline constexpr MotionParams SHARK_PARAMS = {.v_min = 0.5f,
+                                              .v_cruise = 1.0f,
+                                              .v_max = 2.5f,
+                                              .r_max = 0.8f,
+                                              .T_v = 1.0f,
+                                              .T_r = 0.4f,
+                                              .K_phi = 4.0f,
+                                              .tau = 0.3f,
+                                              .wall_clearance = 0.6f};
 
 inline constexpr float L = 3.0f;
 inline constexpr int NODES = 24;

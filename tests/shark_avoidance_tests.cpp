@@ -10,16 +10,6 @@ namespace {
 constexpr float HALF_PI = 1.57079632679f;
 constexpr float PI_F = 3.14159265359f;
 
-constexpr MotionParams SHARK_PARAMS = {.v_min = 0.5f,
-                                       .v_cruise = 1.0f,
-                                       .v_max = 2.5f,
-                                       .r_max = 0.8f,
-                                       .T_v = 1.0f,
-                                       .T_r = 0.4f,
-                                       .K_phi = 4.0f,
-                                       .tau = 0.3f,
-                                       .wall_clearance = 0.6f};
-
 constexpr Commands STRAIGHT_AT_CRUISE = {.v_cmd = 1.0f, .r_cmd = 0.0f};
 constexpr Commands ODD_COMMANDS = {.v_cmd = 1.3f, .r_cmd = 0.2f};
 
@@ -143,10 +133,6 @@ TEST_CASE("symmetric head-on with the shark already turning right: it picks "
     CHECK(result.v_cmd == SHARK_PARAMS.v_min);
     CHECK(result.r_cmd == -SHARK_PARAMS.r_max);
 }
-
-}
-
-TEST_SUITE("shark avoidance, reviewer") {
 
 TEST_CASE("side by side inside contact distance plus margin but outside "
           "contact distance: takeover") {

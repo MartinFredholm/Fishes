@@ -78,6 +78,22 @@ void swimStraightAndCheck(const std::vector<float> &dts) {
     }
 }
 
+Vector2 pointAtArcBehindNose(const std::vector<Vector2> &trace,
+                             double arc_behind_nose) {
+    double walked = 0.0;
+    for (size_t j = trace.size() - 1; j > 0; --j) {
+        double seg = dist(trace[j], trace[j - 1]);
+        if (walked + seg >= arc_behind_nose) {
+            float t = seg > 0.0 ? (float)((arc_behind_nose - walked) / seg)
+                                : 0.0f;
+            return {trace[j].x + (trace[j - 1].x - trace[j].x) * t,
+                    trace[j].y + (trace[j - 1].y - trace[j].y) * t};
+        }
+        walked += seg;
+    }
+    return trace.front();
+}
+
 } // namespace
 
 TEST_SUITE("body line") {
@@ -151,6 +167,36 @@ TEST_CASE("body line is the same with and without the body wave") {
     }
 }
 
+TEST_CASE("varying tightest-radius turn, uneven dt: every update puts each "
+          "point on the traced nose path at s·L behind the nose") {
+    const BodyParams params = bodyParams(0.1f);
+    const std::vector<float> dts = {1.0f / 30.0f, 0.004f, 1.0f / 75.0f, 0.0f,
+                                    0.021f};
+    const float v = 0.5f;
+    const float r_max = v / TIGHTEST_TURN_RADIUS;
+    Kinematics kin = kinAt({10.0f, 7.0f}, -0.3f, v);
+    SharkBody body = seedSharkBody(kin, params);
+    std::vector<Vector2> trace = {
+        {kin.pos.x - kin.heading.x * L, kin.pos.y - kin.heading.y * L},
+        kin.pos};
+    float t = 0.0f;
+    for (int k = 0; k < 1500; ++k) {
+        float dt = dts[k % dts.size()];
+        t += dt;
+        kin = turnStep(kin, r_max * std::sin(0.7f * t), dt);
+        trace.push_back(kin.pos);
+        body = updateSharkBody(body, kin, params, dt);
+        REQUIRE(body.body_line.size() == BODY_LINE_POINTS);
+        for (int i = 0; i < BODY_LINE_POINTS; ++i) {
+            CAPTURE(k);
+            CAPTURE(i);
+            double s = (double)i / (BODY_LINE_POINTS - 1);
+            CHECK(dist(body.body_line[i],
+                       pointAtArcBehindNose(trace, s * L)) < MM);
+        }
+    }
+}
+
 }
 
 TEST_SUITE("nearest point on body line") {
@@ -201,56 +247,6 @@ TEST_CASE("inside a hairpin, the far segment wins over the segments at the "
           "nearest point") {
     checkNearest({1.0f, 0.6f}, HAIRPIN_LINE, {1.0f, 1.0f});
     checkNearest({0.5f, 0.3f}, HAIRPIN_LINE, {0.5f, 0.0f});
-}
-
-}
-
-TEST_SUITE("body line, review 01") {
-
-Vector2 pointAtArcBehindNose(const std::vector<Vector2> &trace,
-                             double arc_behind_nose) {
-    double walked = 0.0;
-    for (size_t j = trace.size() - 1; j > 0; --j) {
-        double seg = dist(trace[j], trace[j - 1]);
-        if (walked + seg >= arc_behind_nose) {
-            float t = seg > 0.0 ? (float)((arc_behind_nose - walked) / seg)
-                                : 0.0f;
-            return {trace[j].x + (trace[j - 1].x - trace[j].x) * t,
-                    trace[j].y + (trace[j - 1].y - trace[j].y) * t};
-        }
-        walked += seg;
-    }
-    return trace.front();
-}
-
-TEST_CASE("varying tightest-radius turn, uneven dt: every update puts each "
-          "point on the traced nose path at s·L behind the nose") {
-    const BodyParams params = bodyParams(0.1f);
-    const std::vector<float> dts = {1.0f / 30.0f, 0.004f, 1.0f / 75.0f, 0.0f,
-                                    0.021f};
-    const float v = 0.5f;
-    const float r_max = v / TIGHTEST_TURN_RADIUS;
-    Kinematics kin = kinAt({10.0f, 7.0f}, -0.3f, v);
-    SharkBody body = seedSharkBody(kin, params);
-    std::vector<Vector2> trace = {
-        {kin.pos.x - kin.heading.x * L, kin.pos.y - kin.heading.y * L},
-        kin.pos};
-    float t = 0.0f;
-    for (int k = 0; k < 1500; ++k) {
-        float dt = dts[k % dts.size()];
-        t += dt;
-        kin = turnStep(kin, r_max * std::sin(0.7f * t), dt);
-        trace.push_back(kin.pos);
-        body = updateSharkBody(body, kin, params, dt);
-        REQUIRE(body.body_line.size() == BODY_LINE_POINTS);
-        for (int i = 0; i < BODY_LINE_POINTS; ++i) {
-            CAPTURE(k);
-            CAPTURE(i);
-            double s = (double)i / (BODY_LINE_POINTS - 1);
-            CHECK(dist(body.body_line[i],
-                       pointAtArcBehindNose(trace, s * L)) < MM);
-        }
-    }
 }
 
 TEST_CASE("bent line: a position nearest to a segment interior far from the "

@@ -19,6 +19,8 @@ constexpr MotionParams LAG_PARAMS = {.v_min = 0.5f,
 
 } // namespace
 
+TEST_SUITE("motion") {
+
 TEST_CASE("the world is 30 by 16 m") {
     CHECK(WORLD_WIDTH == doctest::Approx(30.0f));
     CHECK(WORLD_HEIGHT == doctest::Approx(16.0f));
@@ -38,4 +40,6 @@ TEST_CASE("integrate moves along the old heading and lags speed and turn "
     CHECK(next.r == doctest::Approx(0.6f).epsilon(TOL));
     CHECK(next.heading.x == doctest::Approx(std::cos(0.05f)).epsilon(TOL));
     CHECK(next.heading.y == doctest::Approx(-std::sin(0.05f)).epsilon(TOL));
+}
+
 }
