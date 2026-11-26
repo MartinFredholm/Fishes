@@ -214,10 +214,12 @@ std::vector<Vector2> applyWave(const std::vector<Vector2> &spine, float phase,
 void restoreSegmentLengths(std::vector<Vector2> &spine,
                            const BodyParams &params) {
     float rest = params.length / (params.node_count - 1);
-    for (int pass = 0; pass < params.length_passes; ++pass)
+    for (int pass = 0; pass < params.length_passes; ++pass) {
+        const std::vector<Vector2> waved = spine;
         for (size_t i = 1; i < spine.size(); ++i)
             spine[i] = spine[i - 1] +
-                       Vector2Normalize(spine[i] - spine[i - 1]) * rest;
+                       Vector2Normalize(waved[i] - waved[i - 1]) * rest;
+    }
 }
 
 float advancePhase(float phase, float speed, const BodyParams &params,

@@ -180,15 +180,6 @@ float turnAt(const std::vector<Vector2> &spine, int i) {
     return std::atan2(crossDir(u, w), u.x * w.x + u.y * w.y);
 }
 
-// At v_min and r_max the body update sometimes folds the spine at nodes 13–14
-// (1.2–1.6 rad between adjacent segments). This test skips those frames.
-bool smooth(const std::vector<Vector2> &spine) {
-    for (int i = 1; i + 1 < (int)spine.size(); ++i)
-        if (std::abs(turnAt(spine, i)) > 0.5f)
-            return false;
-    return true;
-}
-
 // Tangent at node 0 of the circle through nodes 0, 1 and 2.
 Vector2 noseTailward(const std::vector<Vector2> &spine) {
     Vector2 c = unit(sub(spine[1], spine[0]));
@@ -334,7 +325,7 @@ TEST_CASE("rigid parts on a swum, waved, turning spine") {
         for (int f = 0; f < 600; ++f) {
             kin = turnStep(kin, r, dt);
             body = updateSharkBody(body, kin, params, dt);
-            if (f % 37 != 0 || !smooth(body.spine))
+            if (f % 37 != 0)
                 continue;
             BodyShape shape = buildBodyShape(body.spine, L);
             REQUIRE(shape.rigid_parts.size() == 5);

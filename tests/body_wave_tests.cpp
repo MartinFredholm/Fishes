@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
 #include "test_support.h"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -33,6 +34,17 @@ double angleDiff(double a, double b) { return std::remainder(a - b, 2.0 * PI_D);
 
 double lateral(Vector2 p, Vector2 origin, Vector2 fwd) {
     return (double)(p.x - origin.x) * fwd.y - (double)(p.y - origin.y) * fwd.x;
+}
+
+float worstBend(const std::vector<Vector2> &spine) {
+    float worst = 0.0f;
+    for (size_t i = 1; i + 1 < spine.size(); ++i) {
+        Vector2 u = {spine[i].x - spine[i - 1].x, spine[i].y - spine[i - 1].y};
+        Vector2 w = {spine[i + 1].x - spine[i].x, spine[i + 1].y - spine[i].y};
+        worst = std::max(worst, std::abs(std::atan2(u.x * w.y - u.y * w.x,
+                                                    u.x * w.x + u.y * w.y)));
+    }
+    return worst;
 }
 
 std::vector<double> lateralOffsets(float phase, int nodes) {
@@ -144,6 +156,26 @@ TEST_CASE("every segment within 0.1 % of L/23 after every update") {
                 body = updateSharkBody(body, kin, params, dt);
                 checkSegmentLengths(body);
             }
+        }
+    }
+}
+
+TEST_CASE("slow, tightest turn: the wave adds at most 0.3 rad to the path's "
+          "bend") {
+    const BodyParams params = bodyParams(WAVE_AMPLITUDE);
+    const float v_min = 0.5f, r_max = 0.8f, dt = 1.0f / 60.0f;
+    const float path_bend_rad = L / (NODES - 1) / TIGHTEST_TURN_RADIUS;
+    const float wave_bend_allowance_rad = 0.3f;
+    for (float r : {r_max, -r_max}) {
+        CAPTURE(r);
+        Kinematics kin = kinAt({15.0f, 8.0f}, 0.3f, v_min, r);
+        SharkBody body = seedSharkBody(kin, params);
+        for (int step = 0; step < 600; ++step) {
+            CAPTURE(step);
+            kin = turnStep(kin, r, dt);
+            body = updateSharkBody(body, kin, params, dt);
+            CHECK(worstBend(body.spine) <=
+                  path_bend_rad + wave_bend_allowance_rad);
         }
     }
 }
