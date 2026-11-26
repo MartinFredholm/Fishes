@@ -2,6 +2,7 @@
 #include "motion.h"
 #include "raylib.h"
 #include "raymath.h"
+#include "shark_avoidance.h"
 #include "shark_body.h"
 #include <algorithm>
 #include <cmath>
@@ -152,6 +153,8 @@ Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,
 Commands getCommands(const Vector2 &a_des_world, const Kinematics &kin,
                      const MotionParams &params);
 
+std::vector<OtherShark> otherSharks(int i, const std::vector<Shark> &sharks);
+
 Commands safetyFilter(Commands cmd, const Kinematics &kin,
                       const MotionParams &params);
 
@@ -218,6 +221,8 @@ int main() {
             sharks_new[i] = sharks_old[i];
             Vector2 a = desiredSharkAcceleration(i, sharks_old, SHARK_MOTION);
             Commands cmd = getCommands(a, sharks_old[i].kin, SHARK_MOTION);
+            cmd = avoidSharks(sharks_old[i].kin, cmd,
+                              otherSharks(i, sharks_old), SHARK_MOTION);
             cmd = safetyFilter(cmd, sharks_old[i].kin, SHARK_MOTION);
             sharks_new[i].kin =
                 integrate(sharks_old[i].kin, cmd, SHARK_MOTION, dt);
@@ -338,6 +343,15 @@ Target sharkGetTarget(int i, const std::vector<Shark> &sharks,
         }
     });
     return {closest, closest_relative_pos, closest_distance};
+}
+
+std::vector<OtherShark> otherSharks(int i, const std::vector<Shark> &sharks) {
+    std::vector<OtherShark> others;
+    others.reserve(sharks.size() - 1);
+    for (int j = 0; j < (int)sharks.size(); ++j)
+        if (j != i)
+            others.push_back({sharks[j].kin, sharks[j].body.body_line});
+    return others;
 }
 
 Vector2 desiredSharkAcceleration(int i, const std::vector<Shark> &sharks,

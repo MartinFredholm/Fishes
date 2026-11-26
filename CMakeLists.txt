@@ -33,15 +33,21 @@ target_include_directories(motion SYSTEM PUBLIC
     $<TARGET_PROPERTY:raylib,INTERFACE_INCLUDE_DIRECTORIES>)
 target_compile_options(motion PRIVATE -Wall -Wextra)
 
+add_library(shark_avoidance STATIC shark_avoidance.cpp)
+target_include_directories(shark_avoidance PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(shark_avoidance PUBLIC shark_body motion)
+target_compile_options(shark_avoidance PRIVATE -Wall -Wextra)
+
 add_executable(fishes fishes.cpp)
 target_compile_options(fishes PRIVATE -Wall -Wextra -ffast-math -mcpu=native)
-target_link_libraries(fishes shark_body motion raylib OpenMP::OpenMP_CXX)
+target_link_libraries(fishes shark_avoidance shark_body motion raylib OpenMP::OpenMP_CXX)
 
 enable_testing()
 add_executable(shark_body_tests tests/body_update_tests.cpp tests/body_wave_tests.cpp
     tests/body_outline_tests.cpp tests/rigid_parts_tests.cpp
-    tests/body_line_tests.cpp tests/motion_tests.cpp)
+    tests/body_line_tests.cpp tests/motion_tests.cpp
+    tests/shark_avoidance_tests.cpp)
 target_include_directories(shark_body_tests PRIVATE third_party)
 target_compile_options(shark_body_tests PRIVATE -Wall -Wextra)
-target_link_libraries(shark_body_tests shark_body motion)
+target_link_libraries(shark_body_tests shark_avoidance shark_body motion)
 add_test(NAME shark_body_tests COMMAND shark_body_tests)
