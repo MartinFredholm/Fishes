@@ -11,18 +11,18 @@
 constexpr int N_FISH = 4000;
 constexpr int N_SHARKS = 2;
 
-constexpr float FISH_WIDTH = 0.1f;
-constexpr float FISH_LENGTH = 0.2f;
+constexpr float FISH_WIDTH = 0.05f;
+constexpr float FISH_LENGTH = 0.25f;
 constexpr Color FISH_COLOR = BLUE;
 
-constexpr MotionParams FISH_MOTION = {.v_min = 0.15f,
+constexpr MotionParams FISH_MOTION = {.v_min = 0.4f,
                                       .v_cruise = 0.6f,
-                                      .v_max = 2.0f,
+                                      .v_max = 1.5f,
                                       .r_max = 6.0f,
-                                      .T_v = 0.1f,
-                                      .T_r = 0.05f,
+                                      .T_v = 0.12f,
+                                      .T_r = 0.08f,
                                       .K_phi = 5.0f,
-                                      .tau = 0.5f,
+                                      .tau = 0.3f,
                                       .wall_clearance = 0.0f};
 
 constexpr float FISH_SIGHT_RANGE = 0.7f;
@@ -183,6 +183,7 @@ Kinematics randomStart(float v) {
 }
 
 int main() {
+    SetConfigFlags(FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Fishes");
     SetTargetFPS(60);
 
@@ -282,17 +283,30 @@ void killFish(std::vector<Shark> &sharks, std::vector<Fish> &fish) {
 
 Vector2 toPixels(Vector2 p) { return p / METERS_PER_PIXEL; }
 
+// Fish outline from nose to tail: x along the heading in units of length,
+// y the half-width in units of half the body width. The tail fin is the last
+// 35% of the length.
+constexpr Vector2 FISH_OUTLINE[] = {
+    {0.5f, 0.0f},    {0.46f, 0.35f},  {0.4f, 0.62f},   {0.32f, 0.83f},
+    {0.22f, 0.96f},  {0.12f, 1.0f},   {0.02f, 0.96f},  {-0.07f, 0.82f},
+    {-0.15f, 0.6f},  {-0.21f, 0.4f},  {-0.27f, 0.27f}, {-0.33f, 0.24f},
+    {-0.39f, 0.29f}, {-0.45f, 0.37f}, {-0.5f, 0.44f}};
+
+constexpr int FISH_OUTLINE_SIZE = sizeof(FISH_OUTLINE) / sizeof(Vector2);
+
+// Right before left gives counter-clockwise triangles on screen, which raylib
+// needs to not cull them.
 void drawBody(const Kinematics &kin, float length, float width, Color color) {
     Vector2 fwd = kin.heading;
     Vector2 left = {fwd.y, -fwd.x};
-    Vector2 tail = kin.pos - fwd * (length / 2);
-
-    Vector2 v_back_1 = tail + left * (width / 2);
-    Vector2 v_back_2 = tail - left * (width / 2);
-    Vector2 v_front = kin.pos + fwd * (length / 2);
-
-    DrawTriangle(toPixels(v_back_1), toPixels(v_back_2), toPixels(v_front),
-                 color);
+    Vector2 strip[2 * FISH_OUTLINE_SIZE];
+    for (int i = 0; i < FISH_OUTLINE_SIZE; ++i) {
+        Vector2 centre = kin.pos + fwd * (FISH_OUTLINE[i].x * length);
+        Vector2 side = left * (FISH_OUTLINE[i].y * width / 2);
+        strip[2 * i] = toPixels(centre - side);
+        strip[2 * i + 1] = toPixels(centre + side);
+    }
+    DrawTriangleStrip(strip, 2 * FISH_OUTLINE_SIZE, color);
 }
 
 // Right before left gives counter-clockwise triangles on screen, which raylib
