@@ -52,8 +52,6 @@ constexpr BodyParams SHARK_BODY = {.length = SHARK_LENGTH,
                                    .strouhal = 0.3f,
                                    .length_passes = 1,
                                    .front_stiff_s = 0.35f,
-                                   .asymmetry_max = 0.5f,
-                                   .asymmetry_full_curvature = 0.8f,
                                    .glide_full_yaw_rate = 0.8f,
                                    .glide_time_constant = 1.0f};
 

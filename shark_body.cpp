@@ -267,38 +267,6 @@ std::vector<Vector2> placePart(const std::vector<Vector2> &spine, float s,
     return part;
 }
 
-// In 1/m, signed like kin.r: the heading change over the last body length of
-// nose path, divided by that length. Each path point has the heading of the
-// segment that leaves it, because integrate moves along the old heading before
-// it turns, and the nose has kin.heading. Interpolating within the segment
-// keeps the heading at the tail continuous when the tail passes a path point
-// or the trim drops one, and needs no path behind the oldest point.
-float bodyTurn(const std::vector<PathPoint> &path, Vector2 nose_heading,
-               float length) {
-    int last = (int)path.size() - 1;
-    auto headingAt = [&](int k) {
-        return k == last ? nose_heading : path[k + 1].pos - path[k].pos;
-    };
-    auto turnAfter = [&](int k) {
-        return turnAngle(headingAt(k), headingAt(k + 1));
-    };
-    float tail_arc = path.back().arc - length;
-    float turn = 0.0f;
-    int k = last - 1;
-    for (; k > 0 && path[k].arc > tail_arc; --k)
-        turn += turnAfter(k);
-    float t = (tail_arc - path[k].arc) / (path[k + 1].arc - path[k].arc);
-    turn += (1.0f - t) * turnAfter(k);
-    return turn / length;
-}
-
-// Positive when the outside of the turn is screen-left, that is in a turn to
-// the right.
-float asymmetryTowardLeft(float body_turn, const BodyParams &params) {
-    return -params.asymmetry_max *
-           std::clamp(body_turn / params.asymmetry_full_curvature, -1.0f, 1.0f);
-}
-
 // The lag keeps the beat from collapsing as fast as the tail sweeps when the
 // yaw rate rises, and from flicking back where an S-turn's yaw rate crosses
 // zero. The exponential form is exact for any dt.
@@ -310,19 +278,14 @@ float glideWaveScale(float wave_scale, float yaw_rate, const BodyParams &params,
     return target + (wave_scale - target) * kept;
 }
 
-// 2/pi - 4/(3 pi) cos 2 theta is the two-term Fourier series of |sin theta|.
 std::vector<Vector2> applyWave(const std::vector<Vector2> &spine, float phase,
-                               float asymmetry_toward_left, float wave_scale,
-                               const BodyParams &params) {
+                               float wave_scale, const BodyParams &params) {
     std::vector<Vector2> waved(spine.size());
     for (int i = 0; i < (int)spine.size(); ++i) {
         float s = (float)i / (params.node_count - 1);
-        float theta = params.wave_number * s - phase;
-        float smooth_abs_sin =
-            2.0f / PI - 4.0f / (3.0f * PI) * std::cos(2.0f * theta);
         float h = wave_scale * params.wave_amplitude * params.length *
                   interpolateSmooth(WAVE_ENVELOPE, s) *
-                  (std::sin(theta) + asymmetry_toward_left * smooth_abs_sin);
+                  std::sin(params.wave_number * s - phase);
         waved[i] = spine[i] + spineLeftNormal(spine, i) * h;
     }
     return waved;
@@ -376,11 +339,7 @@ SharkBody updateSharkBody(const SharkBody &body, const Kinematics &kin,
     if (params.wave_amplitude == 0.0f)
         return next;
     next.phase = advancePhase(body.phase, kin.v, params, dt);
-    next.spine = applyWave(
-        next.spine, next.phase,
-        asymmetryTowardLeft(bodyTurn(next.path, kin.heading, params.length),
-                            params),
-        next.wave_scale, params);
+    next.spine = applyWave(next.spine, next.phase, next.wave_scale, params);
     restoreSegmentLengths(next.spine, params);
     return next;
 }

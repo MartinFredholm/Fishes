@@ -13,9 +13,6 @@ struct BodyParams {
     float strouhal;
     int length_passes;
     float front_stiff_s;
-    float asymmetry_max;
-    // In 1/m.
-    float asymmetry_full_curvature;
     // In rad/s.
     float glide_full_yaw_rate;
     // In s.

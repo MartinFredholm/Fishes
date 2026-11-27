@@ -47,7 +47,7 @@ add_executable(shark_body_tests tests/body_update_tests.cpp tests/body_wave_test
     tests/body_outline_tests.cpp tests/rigid_parts_tests.cpp
     tests/body_line_tests.cpp tests/motion_tests.cpp
     tests/shark_avoidance_tests.cpp tests/system_tests.cpp
-    tests/turn_asymmetry_tests.cpp)
+    tests/turn_glide_tests.cpp)
 target_include_directories(shark_body_tests PRIVATE third_party)
 target_compile_options(shark_body_tests PRIVATE -Wall -Wextra)
 target_link_libraries(shark_body_tests shark_avoidance shark_body motion)

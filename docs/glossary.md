@@ -24,7 +24,7 @@ _Not to be confused with_: `WALL_BUFFER_DIST`, the distance at which wall repuls
 
 **Nose path**: `SharkBody::path`, the positions the nose has traced, with accumulated arc length (`arc` increases toward the nose). It keeps at least L behind the nose and trims the older part. At spawn it is seeded as a straight line of length L along the initial heading.
 
-**Spine**: The shark's centreline, 24 nodes at uniform s from the nose (node 0) to the tail tip (node 23). The nodes are first placed on the nose path at arc length s·L behind the nose, so in a turn the body follows the curve the nose has traced. Then the body wave and the length pass are applied.
+**Spine**: The shark's centreline, 24 nodes at uniform s from the nose (node 0) to the tail tip (node 23). The nodes are first placed on the nose path at arc length s·L behind the nose, so in a turn the body follows the curve the nose has traced. Then front stiffness, the body wave and the length pass are applied.
 _Not to be confused with_: nose path, which is dynamics history and has no body wave.
 
 **Body line**: The shark's body as steering sees it: a few points at uniform s along the nose path, from the nose (s = 0) to s = 1, joined by straight segments. It has no body wave, so the animation never feeds back into the dynamics.
@@ -41,13 +41,9 @@ _Not to be confused with_: shark separation, the soft steering term from `SHARK_
 
 **Front stiffness**: The front of the drawn spine, s = 0 to 0.35, bends less in a turn than the nose path it follows. Fully rigid at the nose, rising smoothly to fully flexible (normal path-following bend) at s = 0.35. The spine from s = 0.35 to the tail stays on the nose path; the front is built forward from s = 0.35, so in a turn the drawn nose sits outside `kin.pos` (13 cm at cruise, 25 cm in the tightest turn). It acts only on the drawn spine. The body line stays on the nose path.
 
-**Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3).
+**Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3). It is scaled by the **wave scale** from turn glide.
 
-**Turn asymmetry**: In a curve, the body wave's half-stroke on the outside of the curve is larger and the one on the inside smaller. Each node is offset toward the outside by a·A·L·amp(s)·(2/π − 4/(3π)·cos 2θ), with θ = k·s − phase. That is the smooth two-term form of a·|h(s)|: the outside peak grows by about 1.06a of the local amplitude and the inside peak shrinks by the same, with no snap where the node crosses the centre line. a is one value for the whole body, from the **body turn**. Along the body it grows with amp(s). It moves the mean position outward by 2a/π of the local amplitude. The outside is the side away from the turn's centre.
-_Not to be confused with_: scaling each half-stroke by (1 ± a), which snaps at the centre line.
-
-**Body turn**: The average curvature of the nose path over the last body length swum: the nose path's heading change from s = 1 to the nose, divided by L. It is the yaw rate averaged over the time the body took to swim its own length. It builds up as the nose enters a curve and falls to zero when the tail tip leaves it. In 1/m, signed like `kin.r`.
-_Not to be confused with_: the nose path's local curvature at a node, which front stiffness uses.
+**Turn glide**: The body wave fades while the shark turns hard, so it glides through the turn. The **wave scale** (`SharkBody::wave_scale`, dimensionless, 1 = full wave) approaches 1 − smoothstep(|r| / full-glide yaw rate) with an exponential lag of time constant τ, which is exact for any dt. Starting values: 0.8 rad/s and τ = 1 s. It is updated every frame, even at zero amplitude.
 
 **Amplitude envelope (amp(s))**: The smooth curve that scales the body wave along the body, through 0.2, 0.21, 0.23, 0.4, 0.88 and 1.0 at s = 0, 0.2, …, 1.
 
@@ -55,7 +51,7 @@ _Not to be confused with_: the nose path's local curvature at a node, which fron
 
 **Length pass**: A head-to-tail pass after the body wave that resets each spine segment to its rest length L/23. The count is `BodyParams::length_passes`.
 
-**Body update**: The first test seam. `updateSharkBody` takes the previous `SharkBody`, the `Kinematics` and dt, and returns the new nose path, phase and spine. It works with any dt ≤ 1/30 s.
+**Body update**: The first test seam. `updateSharkBody` takes the previous `SharkBody`, the `Kinematics` and dt, and returns the new nose path, phase, wave scale and spine. It works with any dt ≤ 1/30 s.
 
 **Body geometry**: The second test seam. `buildBodyShape` takes the spine and returns a `BodyShape` (outline and rigid parts) in world meters. Conversion to pixels happens only when drawing.
 
