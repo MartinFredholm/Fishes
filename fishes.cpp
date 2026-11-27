@@ -25,19 +25,19 @@ constexpr MotionParams FISH_MOTION = {.v_min = 0.15f,
                                       .tau = 0.3f,
                                       .wall_clearance = 0.0f};
 
-constexpr float FISH_SIGHT_RANGE = 1.4f;
-constexpr float FISH_FLEE_RANGE = 2.5f;
-constexpr float FISH_COMFORT_RANGE = 0.5f;
+constexpr float FISH_SIGHT_RANGE = 0.7f;
+constexpr float FISH_FLEE_RANGE = 5.5f;
+constexpr float FISH_COMFORT_RANGE = 0.3f;
 
 constexpr float SHARK_LENGTH = 3.0f;
 constexpr Color SHARK_COLOR = {140, 128, 106, 255};
 
 constexpr float SHARK_HALF_SPAN_AT_PECTORAL_TIPS = 0.2f * SHARK_LENGTH;
 
-constexpr MotionParams SHARK_MOTION = {.v_min = 0.5f,
+constexpr MotionParams SHARK_MOTION = {.v_min = 0.8f,
                                        .v_cruise = 1.0f,
                                        .v_max = 2.5f,
-                                       .r_max = 0.8f,
+                                       .r_max = 1.3f,
                                        .T_v = 1.0f,
                                        .T_r = 0.4f,
                                        .K_phi = 4.0f,
@@ -55,7 +55,7 @@ constexpr BodyParams SHARK_BODY = {.length = SHARK_LENGTH,
                                    .glide_full_yaw_rate = 0.8f,
                                    .glide_time_constant = 1.0f};
 
-constexpr float SHARK_SIGHT_RANGE = 6.0f;
+constexpr float SHARK_SIGHT_RANGE = 8.0f;
 constexpr float SHARK_COMFORT_RANGE = 6.0f;
 constexpr float SHARK_HUNGER_RATE = 0.05f;
 constexpr float SHARK_EAT_DISTANCE = 0.3f;
@@ -64,14 +64,14 @@ constexpr float SHARK_EAT_DURATION = 5.0f;
 constexpr float SPAWN_MARGIN = 1.0f;
 constexpr float MAX_DT = 1.0f / 30.0f;
 
-constexpr float WALL_BUFFER_DIST = 1.0f;
+constexpr float WALL_BUFFER_DIST = 3.0f;
 constexpr float SAFETY_MARGIN = 0.2f;
 // W_COHERENCE is in 1/s^2; the other W_ weights are in m/s^2.
 constexpr float W_WALLS = 5.0f;
-constexpr float T_ALIGN = 0.5f;
+constexpr float T_ALIGN = 0.3f;
 constexpr float T_CRUISE = 0.5f;
-constexpr float W_COHERENCE = 2.0f;
-constexpr float W_FISH_SEPARATION = 0.9f;
+constexpr float W_COHERENCE = 1.0f;
+constexpr float W_FISH_SEPARATION = 1.5f;
 constexpr float W_SHARK_SEPARATION = 4.0f;
 constexpr float W_FLEE = 3.0f;
 constexpr float W_CHASE = 3.0f;
