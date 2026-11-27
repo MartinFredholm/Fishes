@@ -43,7 +43,11 @@ _Not to be confused with_: shark separation, the soft steering term from `SHARK_
 
 **Body wave**: The travelling lateral offset added to each spine node along the local normal: h(s) = A·L·amp(s)·sin(k·s − phase). Small at the head and large at the tail. Parameters from the Julia shark blog post (A = 0.1, k = 5.3, St = 0.3).
 
-**Turn asymmetry**: In a curve, the body wave's half-stroke on the outside of the curve is scaled by (1 + a) and the one on the inside by (1 − a). a grows linearly with the nose path's local curvature at each node, up to 0.5 at 0.8 /m, and is held there for tighter curves. It moves the tail's mean position outward by 2a/π of the local amplitude. Curvature in 1/m; the outside is the side away from the curve's centre.
+**Turn asymmetry**: In a curve, the body wave's half-stroke on the outside of the curve is larger and the one on the inside smaller. Each node is offset toward the outside by a·A·L·amp(s)·(2/π − 4/(3π)·cos 2θ), with θ = k·s − phase. That is the smooth two-term form of a·|h(s)|: the outside peak grows by about 1.06a of the local amplitude and the inside peak shrinks by the same, with no snap where the node crosses the centre line. a is one value for the whole body, from the **body turn**. Along the body it grows with amp(s). It moves the mean position outward by 2a/π of the local amplitude. The outside is the side away from the turn's centre.
+_Not to be confused with_: scaling each half-stroke by (1 ± a), which snaps at the centre line.
+
+**Body turn**: The average curvature of the nose path over the last body length swum: the nose path's heading change from s = 1 to the nose, divided by L. It is the yaw rate averaged over the time the body took to swim its own length. It builds up as the nose enters a curve and falls to zero when the tail tip leaves it. In 1/m, signed like `kin.r`.
+_Not to be confused with_: the nose path's local curvature at a node, which front stiffness uses.
 
 **Amplitude envelope (amp(s))**: The smooth curve that scales the body wave along the body, through 0.2, 0.21, 0.23, 0.4, 0.88 and 1.0 at s = 0, 0.2, …, 1.
 
