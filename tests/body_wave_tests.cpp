@@ -160,12 +160,14 @@ TEST_CASE("every segment within 0.1 % of L/23 after every update") {
     }
 }
 
-TEST_CASE("slow, tightest turn: the wave adds at most 0.3 rad to the path's "
-          "bend") {
+TEST_CASE("slow, tightest turn: the wave adds at most (1 + a_max) 0.3 rad to "
+          "the path's bend") {
     const BodyParams params = bodyParams(WAVE_AMPLITUDE);
     const float v_min = 0.5f, r_max = 0.8f, dt = 1.0f / 60.0f;
     const float path_bend_rad = L / (NODES - 1) / TIGHTEST_TURN_RADIUS;
-    const float wave_bend_allowance_rad = 0.3f;
+    const float symmetric_wave_bend_allowance_rad = 0.3f;
+    const float wave_bend_allowance_rad =
+        (1.0f + params.asymmetry_max) * symmetric_wave_bend_allowance_rad;
     for (float r : {r_max, -r_max}) {
         CAPTURE(r);
         Kinematics kin = kinAt({15.0f, 8.0f}, 0.3f, v_min, r);

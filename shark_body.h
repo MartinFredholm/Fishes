@@ -13,6 +13,13 @@ struct BodyParams {
     float strouhal;
     int length_passes;
     float front_stiff_s;
+    float asymmetry_max;
+    // In 1/m.
+    float asymmetry_full_curvature;
+    // In rad/s.
+    float glide_full_yaw_rate;
+    // In s.
+    float glide_time_constant;
 };
 
 // arc increases toward the nose.
@@ -24,6 +31,7 @@ struct PathPoint {
 struct SharkBody {
     std::vector<PathPoint> path;
     float phase = 0.0f;
+    float wave_scale = 1.0f;
     std::vector<Vector2> spine;
     std::vector<Vector2> body_line;
 };
