@@ -17,12 +17,12 @@ constexpr Color FISH_COLOR = BLUE;
 
 constexpr MotionParams FISH_MOTION = {.v_min = 0.15f,
                                       .v_cruise = 0.6f,
-                                      .v_max = 1.5f,
+                                      .v_max = 2.0f,
                                       .r_max = 6.0f,
-                                      .T_v = 0.2f,
+                                      .T_v = 0.1f,
                                       .T_r = 0.05f,
                                       .K_phi = 5.0f,
-                                      .tau = 0.3f,
+                                      .tau = 0.5f,
                                       .wall_clearance = 0.0f};
 
 constexpr float FISH_SIGHT_RANGE = 0.7f;
@@ -39,9 +39,9 @@ constexpr MotionParams SHARK_MOTION = {.v_min = 0.8f,
                                        .v_max = 2.5f,
                                        .r_max = 1.3f,
                                        .T_v = 1.0f,
-                                       .T_r = 0.4f,
+                                       .T_r = 0.2f,
                                        .K_phi = 4.0f,
-                                       .tau = 0.3f,
+                                       .tau = 0.6f,
                                        .wall_clearance =
                                            SHARK_HALF_SPAN_AT_PECTORAL_TIPS};
 
@@ -65,7 +65,7 @@ constexpr float SPAWN_MARGIN = 1.0f;
 constexpr float MAX_DT = 1.0f / 30.0f;
 
 constexpr float WALL_BUFFER_DIST = 3.0f;
-constexpr float SAFETY_MARGIN = 0.2f;
+constexpr float SAFETY_MARGIN = 0.1f;
 // W_COHERENCE is in 1/s^2; the other W_ weights are in m/s^2.
 constexpr float W_WALLS = 5.0f;
 constexpr float T_ALIGN = 0.3f;
